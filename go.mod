@@ -28,4 +28,4 @@ require (
 // TEMP until ochazuke tag: the keytest export is not tagged yet. Replace with
 // the tag that exports github.com/unixsuperhero/ochazuke/keytest, then drop
 // this line (never commit a local replace past that).
-replace github.com/unixsuperhero/ochazuke => ../ochazuke/.worktrees/keytest-export // TEMP until ochazuke tag
+replace github.com/unixsuperhero/ochazuke => ../ochazuke // TEMP until ochazuke tag
