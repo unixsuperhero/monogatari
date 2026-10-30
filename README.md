@@ -26,12 +26,12 @@ Module `github.com/unixsuperhero/monogatari`; requires Go 1.26 or newer. It
 requires [ochazuke](https://github.com/unixsuperhero/ochazuke) and
 [oden](https://github.com/unixsuperhero/oden); neither requires it.
 
-> **Status: pre-release.** The engine is here: the story format, the runner
+> **Status: v0.1.0, early.** The engine is here: the story format, the runner
 > and driver, recordings, trimming and the explorer (moved from ochazuke's
 > `story` and `explore` packages, which are now frozen and deprecated), with
 > the app seam below, and the host (`monogatari/host`: CLI, catalog, index
 > TUI, player, explore's watch mode; moved from ochazuke's `o-story`).
-> Untagged until v0.1.0.
+> ochazuke's own `o-story` runs on it; the app testers (mtm, o-json) are next.
 
 ## What it does
 
@@ -196,8 +196,8 @@ so its state stays put whichever command runs it.
 go get github.com/unixsuperhero/monogatari@latest
 ```
 
-Until v0.1.0 there is no tag; build against a checkout through an untracked
-`go.work`.
+Requires ochazuke v0.54.0 or newer. For local development against sibling
+checkouts, use an untracked `go.work`.
 
 ## In the family
 
