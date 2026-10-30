@@ -81,12 +81,15 @@ func highlights(row string) (full, dimmed bool) {
 }
 
 // cellText is the text of a row's current cell, trimmed: the text drawn
-// reverse and underlined at once (a table's current cell inside its
-// highlighted row), followed along the row's SGR state; " " for a blank
-// cell and "" when the row holds none.
+// underlined in reverse (a table's current cell inside its highlighted
+// row) or underlined on a background colour (the current cell where
+// highlights cross, ochazuke's intersect tone, drawn out of the reverse
+// bar on a row that holds one), followed along the row's SGR state; " "
+// for a blank cell and "" when the row holds none.
 func cellText(row string) string {
 	var b strings.Builder
-	found, reverse, underline := false, false, false
+	found, reverse, underline, bg := false, false, false, false
+	bar := strings.Contains(row, "\x1b[7m") || strings.Contains(row, ";7m") || strings.Contains(row, "[7;")
 	for i := 0; i < len(row); i++ {
 		if row[i] == 0x1b && i+1 < len(row) && row[i+1] == '[' {
 			j := i + 2
@@ -94,10 +97,11 @@ func cellText(row string) string {
 				j++
 			}
 			if j < len(row) && row[j] == 'm' {
-				for _, p := range strings.Split(row[i+2:j], ";") {
-					switch p {
+				params := strings.Split(row[i+2:j], ";")
+				for k := 0; k < len(params); k++ {
+					switch p := params[k]; p {
 					case "", "0":
-						reverse, underline = false, false
+						reverse, underline, bg = false, false, false
 					case "4":
 						underline = true
 					case "24":
@@ -106,13 +110,25 @@ func cellText(row string) string {
 						reverse = true
 					case "27":
 						reverse = false
+					case "38", "48":
+						// A colour's own numbers are not attributes.
+						if p == "48" {
+							bg = true
+						}
+						if k+1 < len(params) && params[k+1] == "5" {
+							k += 2
+						} else if k+1 < len(params) && params[k+1] == "2" {
+							k += 4
+						}
+					case "49":
+						bg = false
 					}
 				}
 			}
 			i = j
 			continue
 		}
-		if reverse && underline {
+		if underline && (reverse || bg && bar) {
 			found = true
 			b.WriteByte(row[i])
 		}
