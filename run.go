@@ -540,6 +540,9 @@ func (lib Library) Run(s *Story, opt RunOptions) (res Result) {
 		res.Err = err
 		return res
 	}
+	if len(story.Actions) > 0 {
+		return lib.runActions(story)
+	}
 	ss, err := lib.Build(story, Options{Mono: true})
 	if err != nil {
 		res.Err = err
@@ -597,6 +600,44 @@ func (lib Library) Run(s *Story, opt RunOptions) (res Result) {
 	}
 	if string(want) != got {
 		res.Failed = append(res.Failed, "frame differs from "+story.GoldenPath()+"\ngot:\n"+got+"want:\n"+string(want))
+	}
+	return res
+}
+
+// runActions checks each lesson in a fresh fixture, including fresh state
+// and config directories. Optional light expects never require goldens.
+func (lib Library) runActions(s *Story) Result {
+	res := Result{Story: s, Skipped: s.Skip != ""}
+	for i, a := range s.Actions {
+		label := fmt.Sprintf("action %d (%s)", i+1, a.Label)
+		ss, err := lib.Build(s, Options{Mono: true})
+		if err != nil {
+			res.Err = errors.Join(res.Err, fmt.Errorf("%s: %w", label, err))
+			continue
+		}
+		d := NewDriver(ss, Options{Mono: true})
+		check := func(ex Expects, after int) {
+			for _, e := range ex {
+				if e.After == after {
+					for _, f := range Check(d.S, e) {
+						res.Failed = append(res.Failed, label+": "+f)
+					}
+				}
+			}
+		}
+		err = d.Play(s.Setup, func(n int) error { check(s.Expect, n); return nil })
+		if err == nil {
+			check(s.Expect, 0)
+			err = d.Play(a.Keys, func(n int) error { check(a.Expect, n); return nil })
+			if err == nil {
+				check(a.Expect, 0)
+			}
+		}
+		res.Trace = append(res.Trace, d.Trace...)
+		d.Close()
+		if err != nil {
+			res.Err = errors.Join(res.Err, fmt.Errorf("%s: %w", label, err))
+		}
 	}
 	return res
 }

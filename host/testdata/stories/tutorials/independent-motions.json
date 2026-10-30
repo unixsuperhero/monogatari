@@ -1,0 +1,12 @@
+{
+  "name": "Independent motions from the second row",
+  "area": "tutorials",
+  "seed": {"lists": [{"id": "a", "rows": 4}]},
+  "setup": [{"key": "j", "note": "j moves down to a2, our reset point."}],
+  "notes": [{"after": 1, "note": "Every lesson begins again at a2."}],
+  "expect": {"focus": "a2"},
+  "actions": [
+    {"label": "Move down", "caption": "Press j to move down one row, keeping your place in the list.", "keys": ["j"], "expect": {"focus": "a3"}},
+    {"label": "Move up", "caption": "Press k to move up one row. We reset to a2 first; this lands on a1.", "keys": ["k"], "expect": {"focus": "a1"}}
+  ]
+}

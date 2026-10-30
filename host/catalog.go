@@ -61,7 +61,7 @@ var storyColumns = []ochazuke.Column{
 // storyCells is a story's row of storyColumns.
 func storyCells(s *story.Story) []string {
 	w, h := s.Size()
-	return []string{s.Name, s.Area, fmt.Sprintf("%dx%d", w, h), strconv.Itoa(len(s.Script)), strings.TrimPrefix(s.Skip, "gap: ")}
+	return []string{s.Name, s.Area, fmt.Sprintf("%dx%d", w, h), strconv.Itoa(s.EventCount()), strings.TrimPrefix(s.Skip, "gap: ")}
 }
 
 // withoutArea drops the area column (index 1) from storyColumns or a
@@ -161,7 +161,7 @@ func storyRows(lib story.Library, app, fixture string) []Row {
 		}
 		rows = append(rows, Row{ID: storyID(s), Label: s.Name, Data: StoryRow{
 			Area: s.Area, App: a, Fixture: f, Size: fmt.Sprintf("%dx%d", w, h), Chrome: chrome,
-			Steps: len(s.Script), Skipped: s.Skip != "", Expect: s.Expect,
+			Steps: s.EventCount(), Skipped: s.Skip != "", Expect: s.Expect,
 		}, Cells: storyCells(s)})
 	}
 	return rows

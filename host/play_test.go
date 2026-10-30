@@ -171,3 +171,111 @@ func TestPlayRecordsLiveKeysFromAStep(t *testing.T) {
 		t.Fatalf("the saved recording does not replay: %v %v", res.Err, res.Failed)
 	}
 }
+
+func TestPlayTutorialResetsNavigatesAndShowsCaptions(t *testing.T) {
+	h, lib := playHost(t)
+	t.Cleanup(func() {
+		if h.play != nil {
+			h.play.Close()
+		}
+	})
+	s := story.Find(lib.Stories, "tutorials/independent-motions")
+	h.Update(startStory{s}) // story open uses the player for tutorials
+	p := h.play
+	if p.action != -1 || !strings.Contains(screen(h), "reset point") {
+		t.Fatal("setup not shown")
+	}
+	keytest.Press(h, "a")
+	h.Update(playTick{p.gen}) // setup j
+	if p.d.S.R.Focus != "a2" {
+		t.Fatal(p.d.S.R.Focus)
+	}
+	h.Update(playTick{p.gen}) // reset, show action 1 before its key
+	if p.action != 0 || p.at != 0 || !strings.Contains(screen(h), "Press j") {
+		t.Fatal("action caption missing")
+	}
+	h.Update(playTick{p.gen}) // action j
+	if p.d.S.R.Focus != "a3" {
+		t.Fatal(p.d.S.R.Focus)
+	}
+	h.Update(playTick{p.gen}) // reset for action 2
+	if p.action != 1 || p.at != 0 || p.d.S.R.Focus != "a2" {
+		t.Fatalf("no reset: %+v", p)
+	}
+	h.Update(playTick{p.gen}) // k, from reset a2
+	if p.d.S.R.Focus != "a1" || !p.done() || p.auto || len(p.failures()) > 0 {
+		t.Fatal("second action failed")
+	}
+	keytest.Press(h, "[")
+	if p.action != 0 || p.at != 0 || p.d.S.R.Focus != "a2" {
+		t.Fatal("previous action did not reset")
+	}
+	keytest.Press(h, "]")
+	if p.action != 1 || p.at != 0 || p.d.S.R.Focus != "a2" {
+		t.Fatal("next action did not reset")
+	}
+	if _, err := h.idx.Runtime.Settings().SetSession("play.captions", false); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(screen(h), "Press k") {
+		t.Fatal("captions cannot be disabled")
+	}
+	keytest.Press(h, "r")
+	if p.action != -1 || p.at != 0 || p.d.S.R.Focus != "a1" {
+		t.Fatal("restart did not return to opening")
+	}
+	keytest.Press(h, "f")
+	if !p.done() || p.d.S.R.Focus != "a1" {
+		t.Fatal("end did not play all independent actions")
+	}
+}
+
+func TestPlayTutorialRecordingKeepsSetupAndRelativeChecks(t *testing.T) {
+	h, lib := playHost(t)
+	s := *story.Find(lib.Stories, "tutorials/independent-motions")
+	s.Actions = append([]story.Action(nil), s.Actions...)
+	s.Actions[0].Expect = story.Expects{{After: 1, Focus: "a3"}}
+	p, err := newPlayer(lib, &s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(p.Close)
+	t.Cleanup(h.play.Close)
+	if err := p.chooseAction(0); err != nil {
+		t.Fatal(err)
+	}
+	p.step()
+	rec := p.asRecording()
+	if len(rec.Events) != 2 || rec.Expect[0].After != 2 || len(rec.Initial.Actions) != 0 {
+		t.Fatalf("bad recording: %+v", rec)
+	}
+	if res := lib.Replay(rec, nil); !res.OK() {
+		t.Fatalf("replay: %v %v", res.Err, res.Failed)
+	}
+	p.startRecord()
+	if err := p.back(); err != nil {
+		t.Fatal(err)
+	}
+	if p.d.S.R.Focus != "a2" {
+		t.Fatal("recording lost its setup")
+	}
+}
+
+func TestPlayTutorialStopsOnBadResetPoint(t *testing.T) {
+	h, lib := playHost(t)
+	t.Cleanup(h.play.Close)
+	s := *story.Find(lib.Stories, "tutorials/independent-motions")
+	s.Expect = story.Expects{{Focus: "missing"}}
+	p, err := newPlayer(lib, &s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(p.Close)
+	if err := p.chooseAction(0); err == nil {
+		t.Fatal("invalid reset point was accepted")
+	}
+	p.step()
+	if p.at != 0 || len(p.failures()) == 0 {
+		t.Fatal("played action from a bad reset point")
+	}
+}

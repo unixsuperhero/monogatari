@@ -144,6 +144,10 @@ func (h *host) Init() tea.Cmd { return h.idx.Init() }
 
 // open starts a story (or a recording's story, replayed live).
 func (h *host) open(s *story.Story, replay *story.Recording) tea.Cmd {
+	if len(s.Actions) > 0 && replay == nil {
+		h.openPlay(s)
+		return nil
+	}
 	resolved, prefix, err := h.lib.Resolve(s)
 	if err != nil {
 		h.msg = "open " + s.Name + ": " + err.Error()

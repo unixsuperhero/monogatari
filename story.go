@@ -45,6 +45,12 @@ type Story struct {
 	Base   string  `json:"base,omitempty"`
 	Start  int     `json:"start,omitempty"`
 	Script []Event `json:"script,omitempty"`
+	// Setup reaches a tutorial's reset point. Each action starts in a fresh
+	// session with Setup replayed; actions never inherit one another's edits.
+	Setup   []Event  `json:"setup,omitempty"`
+	Actions []Action `json:"actions,omitempty"`
+	// Notes narrate script/setup positions (After 0 is the opening frame).
+	Notes []Note `json:"notes,omitempty"`
 	// Settings are declared on the session's runtime; with no config
 	// directory (stories read no user files) their values last the session.
 	Settings []ochazuke.Setting `json:"settings,omitempty"`
@@ -101,6 +107,34 @@ type CheckSpec struct {
 	Dirty  bool   `json:"dirty,omitempty"`
 }
 
+// Action is one independent lesson, played after Setup. Keys accepts the
+// same strings and events as Script, including job deliveries and notes.
+type Action struct {
+	ID      string  `json:"id,omitempty"` // optional stable identity; Label is for people
+	Label   string  `json:"label"`
+	Caption string  `json:"caption,omitempty"`
+	Keys    []Event `json:"keys"`
+	Expect  Expects `json:"expect,omitempty"`
+	Notes   []Note  `json:"notes,omitempty"`
+}
+
+// Note is narration at a script, setup or action position.
+type Note struct {
+	After int    `json:"after"`
+	Keys  string `json:"keys,omitempty"` // optional key legend, kept for older notes
+	Note  string `json:"note"`
+}
+
+// EventCount is the authored event count (setup once, each action once).
+// Reset replays do not inflate the count in the host's index.
+func (s *Story) EventCount() int {
+	n := len(s.Script) + len(s.Setup)
+	for _, a := range s.Actions {
+		n += len(a.Keys)
+	}
+	return n
+}
+
 // Event is one action: a key press, typed text, a paste, a job delivering,
 // or a framework timer firing. T is milliseconds since the session started
 // (recordings only; scripts leave it 0).
@@ -112,6 +146,7 @@ type Event struct {
 	Job   string `json:"job,omitempty"`   // noun.verb of the job that delivered
 	State string `json:"state,omitempty"` // done or failed
 	Tick  string `json:"tick,omitempty"`  // linger, binding, terminal (a pane frame), output (fake output line), debounce (a tree line's, a form's or a completion's pause) or segment (the status segments' next refresh, answered)
+	Note  string `json:"note,omitempty"`  // shown while this event plays
 	// Restart quits the session and builds it again from the story with
 	// the same state directory (State), as a user reopening the app.
 	Restart bool `json:"restart,omitempty"`
@@ -130,7 +165,7 @@ func (e *Event) UnmarshalJSON(b []byte) error {
 
 // MarshalJSON writes an untimed key press as a bare string.
 func (e Event) MarshalJSON() ([]byte, error) {
-	if e.T == 0 && e.Key != "" && e.Type == "" && e.Paste == "" && e.Job == "" && e.Tick == "" && !e.Restart {
+	if e.T == 0 && e.Key != "" && e.Type == "" && e.Paste == "" && e.Job == "" && e.Tick == "" && e.Note == "" && !e.Restart {
 		return json.Marshal(e.Key)
 	}
 	type plain Event
@@ -375,6 +410,17 @@ func Parse(data []byte, where string) (*Story, error) {
 	}
 	if s.Name == "" {
 		return nil, fmt.Errorf("%s: a story needs a name", where)
+	}
+	if len(s.Actions) > 0 && (len(s.Script) > 0 || s.Base != "") {
+		return nil, fmt.Errorf("%s: actions use setup, not script or base", where)
+	}
+	if len(s.Setup) > 0 && len(s.Actions) == 0 {
+		return nil, fmt.Errorf("%s: setup needs actions", where)
+	}
+	for i, a := range s.Actions {
+		if a.Label == "" || len(a.Keys) == 0 {
+			return nil, fmt.Errorf("%s: action %d needs a label and keys", where, i+1)
+		}
 	}
 	if s.Area == "" {
 		s.Area = path.Base(path.Dir(filepath.ToSlash(where)))

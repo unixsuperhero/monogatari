@@ -85,7 +85,7 @@ func TestStoryListRowsAreTheEmbeddedStories(t *testing.T) {
 	for i, s := range core {
 		data, _ := rows[i].Data.(map[string]any)
 		id := s.Area + "/" + strings.TrimSuffix(filepath.Base(s.Path), ".json")
-		if rows[i].ID != id || rows[i].Label != s.Name || data["area"] != s.Area || data["steps"] != float64(len(s.Script)) || data["skipped"] != (s.Skip != "") {
+		if rows[i].ID != id || rows[i].Label != s.Name || data["area"] != s.Area || data["steps"] != float64(s.EventCount()) || data["skipped"] != (s.Skip != "") {
 			t.Fatalf("row %d %+v for story %s", i, rows[i], id)
 		}
 	}

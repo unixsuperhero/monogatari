@@ -145,6 +145,51 @@ runs both builds, the symbol check) are in [AGENTS.md](AGENTS.md).
 
 ## The host
 
+Tutorial stories use a reset point and independent actions instead of a script:
+
+```json
+{
+  "name": "Learn the row motions",
+  "fixture": "plain",
+  "setup": ["j"],
+  "expect": {"focus": "a2"},
+  "actions": [
+    {"label": "Move down", "caption": "j moves down one row.", "keys": ["j"], "expect": {"focus": "a3"}},
+    {"label": "Move up", "caption": "k moves up from the reset point.", "keys": ["k"], "expect": {"focus": "a1"}}
+  ]
+}
+```
+
+`setup` accepts the same key strings and events as `script`. The player shows
+setup once from the opening frame, then rebuilds the fixture and replays setup
+before **each** action. Edits, registers, config and state files from an action
+never leak into the next. `story run` does the same resets headlessly. The
+top-level `expect` checks setup (with `after` relative to setup); each action's
+optional `expect` checks its keys (`after` relative to that action). Tutorials
+need no golden. Use `script`/`base` for existing sequential stories; combining
+them with `actions` is an error.
+An optional action `id` keeps its inventory identity while `label` uses words
+for people.
+
+`story open NAME` opens tutorials in the player. `a` starts or pauses autoplay
+(400 ms per event by default), `+`/`-` change its speed, and `space` steps.
+`play.action-pause` defaults to `3s` before and after each action, giving time
+to read its caption and see its result; `0s` uses the key playback speed.
+`[` and `]` jump to the previous/next action's reset point, paused; `r` replays
+from the opening frame. Captions show the action label, purpose and keys above
+the frame. The host setting `play.captions` defaults to `true`; `:set
+play.captions false` hides captions and notes.
+
+All stories support native `notes: [{"after": 1, "note": "What changed"}]`;
+actions can also have their own `notes`. An event can carry `note` beside its
+`key`, `type`, `paste` or job, shown before that event plays. Apps do not need
+to declare a `notes` field. Older `{after, keys, note}` notes keep their key
+legend when round-tripped. See
+[the independent motions example](host/testdata/stories/tutorials/independent-motions.json).
+
+Compared with Vim: tutorial actions and reset replay have no Vim counterpart;
+they are player controls, and never enter the application's key stream.
+
 `monogatari/host` is the tester an app mounts. A `Config` names the host
 and what it runs:
 

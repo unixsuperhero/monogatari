@@ -25,6 +25,7 @@ type player struct {
 	d      *story.Driver
 	at     int // events of the script played so far
 	err    error
+	action int // -1: setup (or an ordinary script); otherwise Actions index
 
 	steps   map[int][]story.Expect // expects keyed by After; 0 is the final set
 	results map[int][]string       // After -> failures (an empty slice is a pass); unset while unchecked
@@ -85,10 +86,7 @@ func newPlayer(lib story.Library, s *story.Story) (*player, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := &player{lib: lib, story: resolved, prefix: prefix, speed: playDefault, steps: map[int][]story.Expect{}}
-	for _, e := range resolved.Expect {
-		p.steps[e.After] = append(p.steps[e.After], e)
-	}
+	p := &player{lib: lib, story: resolved, prefix: prefix, speed: playDefault, action: -1}
 	if err := p.rebuild(0); err != nil {
 		return nil, err
 	}
@@ -103,6 +101,14 @@ func (p *player) rebuild(n int) error {
 		p.d = nil
 	}
 	p.at, p.err, p.results, p.golden = 0, nil, map[int][]string{}, nil
+	p.steps = map[int][]story.Expect{}
+	expects := p.story.Expect
+	if p.action >= 0 {
+		expects = p.story.Actions[p.action].Expect
+	}
+	for _, e := range expects {
+		p.steps[e.After] = append(p.steps[e.After], e)
+	}
 	ss, err := p.lib.Build(p.story, story.Options{})
 	if err != nil {
 		return err
@@ -110,10 +116,33 @@ func (p *player) rebuild(n int) error {
 	p.d = story.NewDriver(ss, story.Options{})
 	p.d.Wait = playWait
 	if err := p.d.Play(p.prefix, nil); err != nil {
+		p.Close()
 		return fmt.Errorf("base: %w", err)
 	}
+	if p.action >= 0 {
+		if err := p.d.Play(p.story.Setup, func(n int) error {
+			for _, e := range p.story.Expect {
+				if e.After == n {
+					if bad := story.Check(p.d.S, e); len(bad) > 0 {
+						return fmt.Errorf("%s", strings.Join(bad, "; "))
+					}
+				}
+			}
+			return nil
+		}); err != nil {
+			p.Close()
+			return fmt.Errorf("setup: %w", err)
+		}
+		for _, e := range p.story.Expect {
+			if e.After == 0 {
+				if bad := story.Check(p.d.S, e); len(bad) > 0 {
+					return fmt.Errorf("setup: %s", strings.Join(bad, "; "))
+				}
+			}
+		}
+	}
 	p.d.Trace = nil
-	for i := 0; i < n && p.at < len(p.story.Script); i++ {
+	for i := 0; i < n && p.at < len(p.script()); i++ {
 		p.step()
 	}
 	return nil
@@ -126,16 +155,51 @@ func (p *player) Close() {
 	}
 }
 
-func (p *player) script() []story.Event { return p.story.Script }
+func (p *player) script() []story.Event {
+	if p.action >= 0 {
+		return p.story.Actions[p.action].Keys
+	}
+	if len(p.story.Actions) > 0 {
+		return p.story.Setup
+	}
+	return p.story.Script
+}
 
 // done reports that every event has played (or a step failed to play).
-func (p *player) done() bool { return p.err != nil || p.at >= len(p.script()) }
+func (p *player) done() bool {
+	return p.err != nil || p.at >= len(p.script()) && p.action >= len(p.story.Actions)-1
+}
+
+// chooseAction reuses rebuild to reach the reset point without replaying
+// earlier lessons. Changing actions pauses autoplay and invalidates old ticks.
+func (p *player) chooseAction(index int) error {
+	if len(p.story.Actions) == 0 {
+		return nil
+	}
+	p.auto = false
+	p.gen++
+	p.action = max(0, min(index, len(p.story.Actions)-1))
+	p.err = p.rebuild(0)
+	return p.err
+}
+
+func (p *player) restart() error {
+	p.action, p.auto = -1, false
+	p.gen++
+	p.err = p.rebuild(0)
+	return p.err
+}
 
 // step plays the next event and checks what the script expects after it;
 // after the last event the final expects (else the golden) are checked.
 func (p *player) step() {
 	if p.done() {
 		return
+	}
+	if p.at >= len(p.script()) {
+		p.action++
+		p.err = p.rebuild(0)
+		return // leave the reset frame and caption visible for one tick
 	}
 	e := p.script()[p.at]
 	if err := p.d.Step(e); err != nil {
@@ -161,6 +225,9 @@ func (p *player) step() {
 		p.results[0] = nonNil(bad)
 		return
 	}
+	if len(p.story.Actions) > 0 {
+		return // tutorial assertions are optional; never require a golden
+	}
 	// No final expect: the golden frame pins the story, as the runner's
 	// default does.
 	got := story.Golden(p.d.S.Frame())
@@ -185,12 +252,30 @@ func nonNil(s []string) []string {
 }
 
 // back replays to the step before the current one.
-func (p *player) back() error { return p.rebuild(max(0, p.at-1)) }
+func (p *player) back() error {
+	if p.at == 0 && p.action >= 0 {
+		p.action--
+		return p.rebuild(len(p.script()))
+	}
+	return p.rebuild(max(0, p.at-1))
+}
 
 // startRecord makes the current position the starting state: the unplayed
 // tail of the script and its expects are dropped, and what is typed from
 // here on becomes the script.
 func (p *player) startRecord() {
+	// Turn the current lesson into an ordinary script so saved recordings
+	// replay exactly what was on screen, with its reset prefix included.
+	if len(p.story.Actions) > 0 {
+		copy := *p.story
+		copy.Script = append([]story.Event{}, p.script()...)
+		if p.action >= 0 {
+			p.prefix = append(p.prefix, p.story.Setup...)
+			copy.Expect = p.story.Actions[p.action].Expect
+		}
+		copy.Setup, copy.Actions, copy.Notes = nil, nil, nil
+		p.story, p.action = &copy, -1
+	}
 	p.auto = false
 	p.story.Script = p.story.Script[:p.at]
 	for after := range p.steps {
@@ -252,10 +337,27 @@ func (p *player) asRecording() *story.Recording {
 		started = p.rec.Rec.Started
 	}
 	initial := *p.story
-	initial.Script, initial.Expect = nil, nil
+	initial.Script, initial.Expect, initial.Setup, initial.Actions = nil, nil, nil, nil
 	events := append([]story.Event{}, p.prefix...)
-	events = append(events, p.story.Script[:p.at]...)
-	return &story.Recording{Story: p.story.Name, Started: started, Initial: &initial, Events: events, Expect: p.story.Expect}
+	if p.action >= 0 {
+		events = append(events, p.story.Setup...)
+	}
+	events = append(events, p.script()[:p.at]...)
+	expects := p.story.Expect
+	if p.action >= 0 {
+		expects = p.story.Actions[p.action].Expect
+	}
+	expects = append(story.Expects(nil), expects...)
+	prefixLength := len(p.prefix)
+	if p.action >= 0 {
+		prefixLength += len(p.story.Setup)
+	}
+	for i := range expects {
+		if expects[i].After > 0 {
+			expects[i].After += prefixLength
+		}
+	}
+	return &story.Recording{Story: p.story.Name, Started: started, Initial: &initial, Events: events, Expect: expects}
 }
 
 // rows is the script column: one row per event, plus an end row when the
@@ -295,7 +397,7 @@ func (p *player) rows() []playRow {
 			}
 		}
 		rows = append(rows, row)
-	} else {
+	} else if len(p.story.Actions) == 0 {
 		row := playRow{Event: "end", Assert: "frame = golden", Final: true}
 		if p.golden != nil {
 			row.State = rowPassed
@@ -402,6 +504,12 @@ func summarize(ex []story.Expect) string {
 // runtime. The page's instance is of the play noun, so its rows answer
 // while the page is open and the footer's hints derive from them.
 func (h *host) definePlay(r *ochazuke.Runtime) error {
+	if err := r.DeclareSetting(ochazuke.Setting{Name: "play.captions", Type: ochazuke.SettingBoolean, Default: true, Description: "Show tutorial captions and step notes in the player"}); err != nil {
+		return err
+	}
+	if err := r.DeclareSetting(ochazuke.Setting{Name: "play.action-pause", Type: ochazuke.SettingDuration, Default: "3s", Description: "Pause before and after tutorial actions; 0s uses the key playback speed"}); err != nil {
+		return err
+	}
 	iv := func(fn func() error) any {
 		return func(_ *ochazuke.Runtime, _ ochazuke.Context, _ ochazuke.Arguments) (any, error) {
 			return nil, fn()
@@ -410,7 +518,9 @@ func (h *host) definePlay(r *ochazuke.Runtime) error {
 	r.Define("play").
 		Verb("step", iv(func() error { h.play.auto = false; h.play.step(); return nil }), "Play the next event").
 		Verb("back", iv(func() error { h.play.auto = false; return h.play.back() }), "Replay to the step before").
-		Verb("restart", iv(func() error { h.play.auto = false; return h.play.rebuild(0) }), "Start the story over").
+		Verb("restart", iv(func() error { return h.play.restart() }), "Start the story over").
+		Verb("next-action", iv(func() error { return h.play.chooseAction(h.play.action + 1) }), "Reset and show the next tutorial action").
+		Verb("previous-action", iv(func() error { return h.play.chooseAction(h.play.action - 1) }), "Reset and show the previous tutorial action").
 		Verb("end", iv(func() error {
 			h.play.auto = false
 			for !h.play.done() {
@@ -446,6 +556,8 @@ func (h *host) definePlay(r *ochazuke.Runtime) error {
 		Bind("a", ochazuke.Do("play.auto")).
 		Bind("f", ochazuke.Do("play.end")).
 		Bind("r", ochazuke.Do("play.restart")).
+		Bind("]", ochazuke.Do("play.next-action")).
+		Bind("[", ochazuke.Do("play.previous-action")).
 		Bind("+", ochazuke.Do("play.faster")).
 		Bind("=", ochazuke.Do("play.faster")).
 		Bind("-", ochazuke.Do("play.slower")).
@@ -526,7 +638,11 @@ func (h *host) recordKey(msg tea.Msg) {
 // playTimer schedules the next automatic step.
 func (h *host) playTimer() tea.Cmd {
 	gen := h.play.gen
-	return tea.Tick(h.play.speed, func(time.Time) tea.Msg { return playTick{gen} })
+	delay := h.play.speed
+	if len(h.play.story.Actions) > 0 && (h.play.at == 0 || h.play.at == len(h.play.script())) {
+		delay = max(delay, h.idx.Runtime.Settings().Duration("play.action-pause"))
+	}
+	return tea.Tick(delay, func(time.Time) tea.Msg { return playTick{gen} })
 }
 
 // onPlayTick plays one event when autoplay is on and schedules the next.
@@ -552,13 +668,50 @@ func (h *host) renderPlay(_ *ochazuke.Runtime, w, ht int) ochazuke.Block {
 	if p == nil {
 		return ochazuke.Text(s.Muted.Render("no story is playing"))
 	}
-	frame := p.d.S.Frame()
+	frame := ""
+	if p.d != nil {
+		frame = p.d.S.Frame()
+	}
 	sw, sh := p.story.Size()
 	title := " ▶ " + p.story.Area + "/" + story.Slug(p.story.Name) + " "
 	box := boxFrame(frame, title, fmt.Sprintf(" %dx%d ", sw, sh), sw)
 
 	side := sideWidth(w, sw)
-	return ochazuke.Text(beside(p.sidebar(s, side, ht), box, side, w, ht))
+	var caption []string
+	if h.idx.Runtime.Settings().Bool("play.captions") {
+		if text := p.caption(); text != "" {
+			caption = strings.Split(ansi.Wrap(text, max(1, w), ""), "\n")
+			caption = append(caption, "")
+		}
+	}
+	body := beside(p.sidebar(s, side, max(0, ht-len(caption))), box, side, w, max(0, ht-len(caption)))
+	if len(caption) > 0 {
+		body = strings.Join(caption, "\n") + "\n" + body
+	}
+	return ochazuke.Text(body)
+}
+
+func (p *player) caption() string {
+	var parts []string
+	notes := p.story.Notes
+	if len(p.story.Actions) > 0 {
+		if p.action < 0 {
+			parts = append(parts, "Setup · reach the reset point")
+		} else {
+			a := p.story.Actions[p.action]
+			parts = append(parts, fmt.Sprintf("Action %d/%d · %s", p.action+1, len(p.story.Actions), a.Label), a.Caption)
+			notes = a.Notes
+		}
+	}
+	for _, n := range notes {
+		if n.After == p.at {
+			parts = append(parts, n.Note)
+		}
+	}
+	if p.at < len(p.script()) && p.script()[p.at].Note != "" {
+		parts = append(parts, p.script()[p.at].Note)
+	}
+	return strings.Join(parts, "\n")
 }
 
 // sideWidth is the width a sidebar gets beside a boxed frame frameW wide:
