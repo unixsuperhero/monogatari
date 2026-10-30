@@ -1,0 +1,7 @@
+{
+  "name": "k at the first row climbs to the list above",
+  "area": "motions",
+  "seed": {"lists": [{"id": "a", "rows": 2}, {"id": "b", "rows": 3}], "focus": "b1"},
+  "script": ["k"],
+  "expect": {"focus": "a2"}
+}

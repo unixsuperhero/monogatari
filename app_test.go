@@ -2,6 +2,7 @@ package monogatari_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -189,6 +190,12 @@ func TestAppLookupFailures(t *testing.T) {
 		if res.Err == nil || res.Err.Error() != want {
 			t.Errorf("%s: err %v, want %q", doc, res.Err, want)
 		}
+	}
+	failing := monogatari.App{Name: "failing", Fixtures: []monogatari.Fixture{{Name: "plain", Build: func(monogatari.Env) (monogatari.Built, error) {
+		return monogatari.Built{}, errors.New("no seed")
+	}}}}
+	if res := run(t, monogatari.Library{Apps: []monogatari.App{failing}}, `{"name": "x", "state": true}`); res.Err == nil || res.Err.Error() != "no seed" {
+		t.Errorf("a failing fixture: err %v, want its error", res.Err)
 	}
 	if res := run(t, monogatari.Library{}, `{"name": "x"}`); res.Err == nil {
 		t.Error("a host with no app built a story")

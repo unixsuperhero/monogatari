@@ -1,0 +1,7 @@
+{
+  "name": "the palette opens and esc closes it",
+  "area": "motions",
+  "seed": {"lists": [{"id": "a", "rows": 2}]},
+  "script": [":", "esc"],
+  "expect": [{"after": 1, "mode": "insert"}, {"mode": "normal", "focus": "a1"}]
+}

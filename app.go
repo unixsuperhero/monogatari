@@ -185,9 +185,10 @@ func build(apps []App, s *Story, opt Options, stateDir string) (ss *Session, err
 	}
 	ss = &Session{Story: s, App: app, Fixture: fx, apps: apps, opt: opt}
 	keep := stateDir != ""
+	made := ss // a failing return sets ss to nil before this runs
 	defer func() {
 		if err != nil {
-			ss.close(keep)
+			made.close(keep)
 		}
 	}()
 	if s.State && stateDir == "" {

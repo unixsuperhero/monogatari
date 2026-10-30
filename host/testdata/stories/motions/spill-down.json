@@ -1,0 +1,7 @@
+{
+  "name": "spill: j at the last row",
+  "area": "motions",
+  "seed": {"lists": [{"id": "a", "rows": 2}, {"id": "b", "rows": 3}, {"id": "c", "rows": 10}]},
+  "script": ["j", "j"],
+  "expect": {"focus": "b1", "visible": true}
+}

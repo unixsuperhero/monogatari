@@ -13,13 +13,16 @@ command); neither requires monogatari. README.md holds the contract (story
 format, "Stories for your app", the release order); keep it in sync with the
 code. The design is `~/hub/o-plans/plans/o-story-for-apps.md`.
 
-Status: lane L1 of that plan. The engine is here: the format, runner,
+Status: lanes L1 and L2 of that plan. The engine is here: the format, runner,
 driver, recording and trimming in the root package (moved from ochazuke's
 `story` at `465906e`; the demo's page builder stayed in ochazuke as
 `cmd/o-story/demo`), the app seam (`app.go`: `App`, `Fixture`, `Env`,
 `Built`, `Session`), and `explore` (moved from ochazuke's `explore`, with
-`Subject.Program`). The host (`cmd/o-story` minus its `main.go`) moves in
-with L2.
+`Subject.Program`), and the host (`host/`, moved from ochazuke's
+`cmd/o-story` at `3a062c0` in lane L2: the commands, the catalog shell, the
+index TUI, the player, explore's watch mode, `Config`/`Main`/`Command`/`Test`).
+The host's tests run over the `rows` test app (`host/app_test.go`) and
+`host/testdata/stories`; ochazuke's demo stories stay in ochazuke.
 
 ## Plans and todos
 

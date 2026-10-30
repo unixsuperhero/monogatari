@@ -1,0 +1,8 @@
+{
+  "name": "a count spills once at the edge",
+  "area": "gaps",
+  "skip": "gap: the rows app has no count (a skipped story for the tests)",
+  "seed": {"lists": [{"id": "a", "rows": 2}, {"id": "b", "rows": 3}]},
+  "script": ["j"],
+  "expect": {"focus": "b3"}
+}

@@ -1,0 +1,8 @@
+{
+  "name": "k again climbs to the first row",
+  "area": "motions",
+  "base": "story:k at the first row climbs to the list above",
+  "start": 1,
+  "script": ["k"],
+  "expect": {"focus": "a1"}
+}

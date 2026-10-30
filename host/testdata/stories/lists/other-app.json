@@ -1,0 +1,8 @@
+{
+  "name": "a story of the other app",
+  "area": "lists",
+  "app": "other",
+  "seed": {"lists": [{"id": "o", "rows": 2}]},
+  "script": ["j"],
+  "expect": {"focus": "o2"}
+}

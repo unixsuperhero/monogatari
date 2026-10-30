@@ -47,18 +47,20 @@ func (r *Recorder) Add(e Event) {
 // HistorySize is how many unnamed recordings the ring keeps.
 const HistorySize = 5
 
-// Store is o-story's data directory: history/ is the ring of the last
+// Store is a host's data directory: history/ is the ring of the last
 // HistorySize recordings, saved/ the named ones, which the ring never drops.
 type Store struct{ Dir string }
 
-// DefaultStore is $XDG_DATA_HOME/o-story, else ~/.local/share/o-story.
-func DefaultStore(getenv func(string) string) Store {
+// DefaultStore is the store of the host named host (its slug: o-story,
+// mtm-story): $XDG_DATA_HOME/HOST, else ~/.local/share/HOST. Each host has
+// its own ring and saved recordings.
+func DefaultStore(getenv func(string) string, host string) Store {
 	base := getenv("XDG_DATA_HOME")
 	if base == "" {
 		home, _ := os.UserHomeDir()
 		base = filepath.Join(home, ".local", "share")
 	}
-	return Store{Dir: filepath.Join(base, "o-story")}
+	return Store{Dir: filepath.Join(base, host)}
 }
 
 func (s Store) history() string { return filepath.Join(s.Dir, "history") }
@@ -246,4 +248,18 @@ func (s Store) Load(ref string) (*Entry, error) {
 		return nil, fmt.Errorf("recording %q: %w", ref, err)
 	}
 	return &Entry{Name: ref, Path: path, Rec: rec}, nil
+}
+
+// Delete removes a recording by ring number (1 newest) or saved name,
+// returning the file it removed. Deleting a ring entry renumbers the
+// older ones.
+func (s Store) Delete(ref string) (string, error) {
+	e, err := s.Load(ref)
+	if err != nil {
+		return "", err
+	}
+	if err := os.Remove(e.Path); err != nil {
+		return "", err
+	}
+	return e.Path, nil
 }

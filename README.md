@@ -29,9 +29,9 @@ requires [ochazuke](https://github.com/unixsuperhero/ochazuke) and
 > **Status: pre-release.** The engine is here: the story format, the runner
 > and driver, recordings, trimming and the explorer (moved from ochazuke's
 > `story` and `explore` packages, which are now frozen and deprecated), with
-> the app seam below. The host (`monogatari/host`: CLI, index TUI, player)
-> still lives in ochazuke's `o-story` and moves here next; items marked
-> *coming in v0.1.0* arrive with it. Untagged until v0.1.0.
+> the app seam below, and the host (`monogatari/host`: CLI, catalog, index
+> TUI, player, explore's watch mode; moved from ochazuke's `o-story`).
+> Untagged until v0.1.0.
 
 ## What it does
 
@@ -51,7 +51,8 @@ requires [ochazuke](https://github.com/unixsuperhero/ochazuke) and
   (`monogatari/explore`; `Library.Subject` explores a story's app).
 - **A host per app.** CLI subcommands, an index TUI and a player, as an
   [oden](https://github.com/unixsuperhero/oden) command an app mounts under
-  its own name (`mtm story ...`). *Coming in v0.1.0.*
+  its own name (`mtm story ...`), each host with its own user stories and
+  recordings (see "The host" below).
 
 monogatari knows no app. An app's behaviour comes in through its fixtures
 (named starting states that build its runtime from a seed) as data; the
@@ -128,8 +129,7 @@ go test -race -tags monogatari ./...                   # every test, stories inc
 ```
 
 The tester never touches the owner's data: every session gets a temp
-database and a socket nothing listens on. *Coming in v0.1.0* (the host), then
-in each app:
+database and a socket nothing listens on. In each app:
 
 ```sh
 mtm-story story run panes              # headless; non-zero exit on failure
@@ -142,6 +142,53 @@ mtm-story story explore panes          # the state explorer
 
 The rules for the tag (tagged files, the `!monogatari` stub, the gate that
 runs both builds, the symbol check) are in [AGENTS.md](AGENTS.md).
+
+## The host
+
+`monogatari/host` is the tester an app mounts. A `Config` names the host
+and what it runs:
+
+```go
+cfg := host.Config{
+    Prog:    "mtm story",                    // usage and messages; Name defaults to its slug, mtm-story
+    Apps:    []monogatari.App{mtmApp()},     // the first is the default app
+    Stories: storiesFS,                      // fs.Sub of the embedded stories/
+}
+root.Add(host.Command(cfg))                  // mtm story ... (an oden command named story)
+// or, a tester binary of its own: host.Main(cfg, os.Args[1:], os.Stdout, os.Stderr)
+```
+
+and in the app's tests (`Dir` makes `-update` rewrite the goldens on disk):
+
+```go
+func TestStories(t *testing.T) {
+    cfg.Dir, cfg.Update = "stories", *update
+    host.Test(t, cfg) // every story a parallel subtest; a skipped story is a gap
+}
+```
+
+The commands: `run`, `open`, `list`, `history`, `keep`, `replay`, `trim`,
+`explore` (with `--watch` and `--dedupe`), `verbs`, the index TUI with no
+words, and the catalog (`catalog`, `NOUN VERB --target ID`):
+
+| noun | verbs |
+|---|---|
+| `story` | list (`--app`, `--fixture`), show, run, copy (`--as NAME`, to the user's stories with its golden), fixture, recordings, state |
+| `recording` | list (`--story NAME`), show, delete |
+| `fixture` | list (`--app`), show, stories |
+| `application` | list, show, stories, fixtures (the noun `app` is ochazuke's runtime's own) |
+| `verb`, `edge` | list (the minimum the stories exercise) |
+
+A relation is one handler on both nouns: `story list --app A` is
+`application stories`, `fixture list --app A` is `application fixtures`,
+`recording list --story S` is `story recordings`.
+
+Each host keeps its own state, under its name (`Config.Name`, default the
+slug of `Prog`): user stories (trimmed, copied, hand-made) in
+`$XDG_CONFIG_HOME/NAME/stories`, recordings (the ring of 5 and the saved
+ones) in `$XDG_DATA_HOME/NAME`. Two hosts on one machine never see each
+other's stories or recordings. ochazuke's `o-story` sets `Name: "o-story"`,
+so its state stays put whichever command runs it.
 
 ## Install
 

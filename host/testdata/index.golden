@@ -1,0 +1,51 @@
+-- width 100 --
+  ◆ rows-story                                                                             NORMAL
+   › Stories  Play
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  LISTS ──────────────────────────────────────────────────────────────────────────────────────── 2
+    story                               size   steps  gap
+    j moves down a row                  40x6       3
+    a focused empty list stays visible  80x24      1
+
+  MOTIONS ────────────────────────────────────────────────────────────────────────────────────── 1
+    story                          size   steps  gap
+    count spills once at the edge  60x10      3  the count is spent on the first stop instead of …
+
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  enter entry.open · p entry.play · q app.quit · space list.mark · : palette.open · ? bindings.he…
+
+-- width 64 --
+  ◆ rows-story                                         NORMAL
+   › Stories  Play
+  ────────────────────────────────────────────────────────────
+  LISTS ──────────────────────────────────────────────────── 2
+    story                               size   steps  gap
+    j moves down a row                  40x6       3
+    a focused empty list stays visible  80x24      1
+
+  MOTIONS ────────────────────────────────────────────────── 1
+    story                        size   steps  gap
+    count spills once at the e…  60x10      3  the count is s…
+
+
+  ────────────────────────────────────────────────────────────
+  enter entry.open · p entry.play · q app.quit · space list.m…
+
+-- width 40 --
+  ◆ rows-story                 NORMAL
+   › Stories  Play
+  ────────────────────────────────────
+  LISTS ──────────────────────────── 2
+    story                           3›
+    j moves down a row
+    a focused empty list stay…
+
+  MOTIONS ────────────────────────── 1
+    story                           3›
+    count spills once at the …
+
+
+  ────────────────────────────────────
+  enter entry.open · p entry.play · q…
+
