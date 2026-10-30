@@ -6,6 +6,12 @@
 // "monogatari"; a normal build of the app links none of it. ochazuke's own
 // o-story is one more host of this library.
 //
-// This is the first commit of the repository (lane L0 of the plan): the
-// engine moves in from ochazuke's story and explore packages in L1.
+// A story is data (a script of events and what must hold afterwards, plus
+// the app, fixture and seed that build its starting state); Library.Build
+// turns it into a live runtime and model through the app's fixture, a
+// Driver plays events against it headless, and a Recorder turns the
+// messages of a live session into the same events. State changes only
+// through events; a frame is a pure function of the story and its events.
+// Stories never read production state: a fixture gets only what Env gives
+// it.
 package monogatari

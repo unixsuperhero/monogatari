@@ -26,29 +26,29 @@ Module `github.com/unixsuperhero/monogatari`; requires Go 1.26 or newer. It
 requires [ochazuke](https://github.com/unixsuperhero/ochazuke) and
 [oden](https://github.com/unixsuperhero/oden); neither requires it.
 
-> **Status: pre-release.** Today the repository holds the module, its rules
-> ([AGENTS.md](AGENTS.md)) and a smoke test that drives a model through
-> `github.com/unixsuperhero/ochazuke/keytest`. The engine is ochazuke's
-> `story` and `explore` packages and its `o-story` tool, which move here
-> unchanged in the next lanes; everything marked *coming in v0.1.0* below
-> works today in ochazuke's `o-story` and arrives here with that release.
+> **Status: pre-release.** The engine is here: the story format, the runner
+> and driver, recordings, trimming and the explorer (moved from ochazuke's
+> `story` and `explore` packages, which are now frozen and deprecated), with
+> the app seam below. The host (`monogatari/host`: CLI, index TUI, player)
+> still lives in ochazuke's `o-story` and moves here next; items marked
+> *coming in v0.1.0* arrive with it. Untagged until v0.1.0.
 
 ## What it does
 
 - **Stories.** JSON keystroke scripts with expectations: the focused list,
   the mode, text the screen contains or lacks, the highlighted rows, the
   page. Keys are named as bindings name them (`ctrl+n`, `esc`, `shift+tab`).
-  *Coming in v0.1.0.*
 - **Headless runs.** Every story runs under `go test` against the app's real
   UI, with a fake clock, jobs and ticks, so a run is the same every time.
-  *Coming in v0.1.0.*
 - **Recordings.** Every live session is recorded: a ring of the last 5 per
   story, plus named saves you `keep`. `replay` plays one back with its
   timing; `trim` cuts it down to the keys that matter; `run --from` turns
-  one into a headless check. *Coming in v0.1.0.*
+  one into a headless check (`Store`, `Recorder`, `Library.Trim`,
+  `Library.Replay`; the commands come with the host).
 - **Explorer.** Walks an app's states from a story's start and reports what
   breaks (panics, focus traps, hints that lie, renders that overflow, jobs
-  that never settle), each finding written out as a story that reproduces it. *Coming in v0.1.0.*
+  that never settle), each finding written out as a story that reproduces it
+  (`monogatari/explore`; `Library.Subject` explores a story's app).
 - **A host per app.** CLI subcommands, an index TUI and a player, as an
   [oden](https://github.com/unixsuperhero/oden) command an app mounts under
   its own name (`mtm story ...`). *Coming in v0.1.0.*
@@ -59,10 +59,11 @@ library never branches on an app's name.
 
 ## A story
 
-A story from ochazuke's own suite, in the format `o-story` reads today
-(`page` builds a page for ochazuke's demo app). v0.1.0 adds `app`, `fixture`
-and `seed`, so a story names which app to build and from which starting
-state; a story with no `app` runs on the host's first app.
+A story from ochazuke's own suite (`page` is a field of ochazuke's demo
+app, which builds a synthetic page from it). `app`, `fixture` and `seed`
+name which app to build, from which starting state and with what data; a
+story with no `app` runs on the host's first app, with no `fixture` on the
+app's first.
 
 ```json
 {
@@ -79,6 +80,39 @@ state; a story with no `app` runs on the host's first app.
 
 An `expect` entry checks the screen after a step (`after`) or, without one,
 at the end.
+
+## The app seam
+
+A host registers its apps in a `Library`; there is no built-in app. Each
+app has named fixtures, and a fixture builds the app's runtime from what
+`Env` gives it and nothing else on the machine:
+
+```go
+lib := monogatari.Library{Stories: stories, Apps: []monogatari.App{{
+	Name:   "mtm",
+	Fields: nil, // top-level story fields this app reads (the demo's: page, pages)
+	Fixtures: []monogatari.Fixture{{Name: "seeded", Build: func(env monogatari.Env) (monogatari.Built, error) {
+		a := newFakedApp(env.Seed, env.StateDir, env.Now) // temp database, dead socket, fake panes
+		return monogatari.Built{Model: a.Model(), Program: a, Close: a.Close}, nil
+	}}},
+	Expected: func(op, err string) bool { return err == "daemon unavailable" },
+}}}
+res := lib.Run(story, monogatari.RunOptions{Golden: true})
+```
+
+- The host does the generic parts for every app: temp state, config and
+  file dirs; the story's settings, `values` and `session` (`Env.Sandbox`,
+  or `Env.NewRuntime` for a fixture that builds from scratch); the config
+  files loaded after the build; `checks`; theme, size and `chrome`.
+- `Built.Program` is the app's own `tea.Model` when it wraps the ochazuke
+  model's `Update` and `View`: the driver sends every event to it and the
+  frame is its view. `Built.Init` runs its `Init` first; `Built.Start` runs
+  after the first frame.
+- `reset` (`Env.Reset` from a verb) and a `restart` event rebuild through
+  the same fixture; a restart keeps the state directory.
+- A story naming an app the host lacks fails with
+  `app "mtm" is not in this host (run it with mtm story)`; a top-level field
+  its app does not declare in `Fields` fails too.
 
 ## Each app builds its own tester
 
@@ -115,8 +149,8 @@ runs both builds, the symbol check) are in [AGENTS.md](AGENTS.md).
 go get github.com/unixsuperhero/monogatari@latest
 ```
 
-Until v0.1.0 there is no tag and no engine to import; the module builds and
-its smoke test runs.
+Until v0.1.0 there is no tag; build against a checkout through an untracked
+`go.work`.
 
 ## In the family
 
