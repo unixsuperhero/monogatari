@@ -648,10 +648,10 @@ func (h *host) definePlay(r *ochazuke.Runtime) error {
 		}), "Show the current player full size").
 		Verb("leave", iv(func() error { return h.leavePlay() }), "Back to the index").
 		Mode("normal").
-		Bind("z", ochazuke.Do("play.fullsize")).
+		Bind("p", ochazuke.Do("play.fullsize")).
 		Bind("i", ochazuke.Do("play.record")).
 		Bind("s", ochazuke.Do("play.save")).
-		Bind("space", ochazuke.Do("play.step")).
+		Bind("space", ochazuke.Do("play.auto")).
 		Bind("l", ochazuke.Do("play.step")).
 		Bind("right", ochazuke.Do("play.step")).
 		Bind("h", ochazuke.Do("play.back")).
@@ -671,14 +671,15 @@ func (h *host) definePlay(r *ochazuke.Runtime) error {
 	return err
 }
 
-// openPlay builds the player for story s and shows the play page.
-func (h *host) openPlay(s *story.Story) {
+// openPlay builds the player for story s, shows the play page and starts autoplay.
+func (h *host) openPlay(s *story.Story) tea.Cmd {
 	p, err := newPlayer(h.lib, s)
 	if err != nil {
 		h.msg = "play " + s.Name + ": " + err.Error()
-		return
+		return nil
 	}
 	if h.play != nil {
+		h.gen = max(h.gen, h.play.gen)
 		h.play.Close()
 	}
 	if inst := h.idx.Runtime.Instances[h.idx.Runtime.Focus]; inst != nil && inst.Noun == "entry" {
@@ -686,16 +687,25 @@ func (h *host) openPlay(s *story.Story) {
 	}
 	h.embedded = false
 	h.play = p
+	h.gen++
+	p.gen = h.gen // a timer from a previous player must never advance this one
 	if err := h.idx.Runtime.OpenPage("play"); err != nil {
 		h.msg = "play " + s.Name + ": " + err.Error()
 		p.Close()
 		h.play = nil
+		return nil
 	}
+	p.auto = !p.done()
+	if p.auto {
+		return h.playTimer()
+	}
+	return nil
 }
 
 // leavePlay closes the player and returns to the index.
 func (h *host) leavePlay() error {
 	if h.play != nil {
+		h.gen = max(h.gen, h.play.gen)
 		h.play.Close()
 		h.play = nil
 	}

@@ -75,7 +75,7 @@ func newHost(lib story.Library, title string) (*host, error) {
 			}
 			h.wantP = i
 			return ochazuke.Done(nil)
-		}, "Play the story's script step by step beside its frame; i records from any step").
+		}, "Autoplay the story beside its frame; space pauses and i records from any step").
 		Verb("play-here", func(c ochazuke.Ctx) ochazuke.Result {
 			i, ok := c.Instance.Data.(int)
 			if !ok {
@@ -87,11 +87,10 @@ func newHost(lib story.Library, title string) (*host, error) {
 				h.want = i
 			}
 			return ochazuke.Done(nil)
-		}, "Play the focused story in the preview pane; q returns to the list").
+		}, "Autoplay the focused story in the preview pane; space pauses and q returns to the list").
 		Mode("normal").
 		Bind("enter", ochazuke.Do("entry.play-here")).
 		Bind("o", ochazuke.Do("entry.open")).
-		Bind("z", ochazuke.Do("entry.play")).
 		Bind("p", ochazuke.Do("entry.play")).
 		Bind("q", ochazuke.Do("app.quit"))
 	h.field = ochazuke.NewInput("save-name", "", false)
@@ -155,8 +154,7 @@ func (h *host) Init() tea.Cmd { return tea.Batch(h.idx.Init(), h.previewCommand(
 // open starts a story (or a recording's story, replayed live).
 func (h *host) open(s *story.Story, replay *story.Recording) tea.Cmd {
 	if len(s.Actions) > 0 && replay == nil {
-		h.openPlay(s)
-		return nil
+		return h.openPlay(s)
 	}
 	resolved, prefix, err := h.lib.Resolve(s)
 	if err != nil {
@@ -290,7 +288,7 @@ func (h *host) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case startReplay:
 		return h, h.open(v.rec.Initial, v.rec)
 	case startStory:
-		return h, h.open(v.s, nil)
+		return h, h.openPlay(v.s)
 	case outputMsg:
 		if h.cur == nil || v.gen != h.gen || h.replay != nil {
 			return h, nil
@@ -334,7 +332,7 @@ func (h *host) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if h.wantP >= 0 {
 		s := h.lib.Stories[h.wantP]
 		h.wantP = -1
-		h.openPlay(s)
+		cmd = tea.Batch(cmd, h.openPlay(s))
 		if h.wantHere && h.play != nil {
 			h.embedded = true
 			h.idx.Runtime.OpenPage("index")

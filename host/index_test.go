@@ -90,12 +90,16 @@ func TestOpenStartsOnTheStory(t *testing.T) {
 		t.Fatal("motions/climb-on (a story with a base) not found")
 	}
 	h.Update(tea.WindowSizeMsg{Width: 120, Height: 50})
-	h.Update(startStory{s})
-	if h.cur == nil {
+	_, cmd := h.Update(startStory{s})
+	if h.play == nil || !h.play.auto || cmd == nil {
 		t.Fatalf("no story open: %s", h.msg)
 	}
-	if view := ansi.Strip(h.View().Content); !strings.Contains(view, "b3") || h.cur.R.Focus != "a2" {
-		t.Fatalf("the story is not open after its base (focus %q):\n%s", h.cur.R.Focus, view)
+	t.Cleanup(h.play.Close)
+	if view := ansi.Strip(h.View().Content); !strings.Contains(view, "b3") || h.play.d.S.R.Focus != "a2" {
+		t.Fatalf("the story is not open after its base (focus %q):\n%s", h.play.d.S.R.Focus, view)
 	}
-	h.cur.Close()
+	h.Update(nextPlayTick(t, cmd))
+	if h.play.at != 1 {
+		t.Fatal("story open did not advance automatically")
+	}
 }

@@ -3,11 +3,13 @@
   "area": "index",
   "width": 120,
   "height": 32,
-  "script": ["j", "enter", "space", "esc", "k"],
+  "script": ["j", "enter", "space", "l", "p", "esc", "k"],
   "expect": [
-    {"after": 2, "page": "index", "focus": "index-player", "contains": ["First story", "Second story", "step 0/1"]},
-    {"after": 3, "contains": ["step 1/1"]},
-    {"after": 4, "focus": "s1", "contains": ["First frame"]},
+    {"after": 2, "page": "index", "focus": "index-player", "contains": ["First story", "Second story", "step 0/1", "▶ auto"]},
+    {"after": 3, "contains": ["step 0/1", "paused"]},
+    {"after": 4, "contains": ["step 1/1"]},
+    {"after": 5, "page": "play", "contains": ["step 1/1"]},
+    {"after": 6, "focus": "s1", "contains": ["First frame"]},
     {"focus": "s0", "contains": ["fixture: empty", "First frame"]}
   ]
 }

@@ -171,8 +171,9 @@ them with `actions` is an error.
 An optional action `id` keeps its inventory identity while `label` uses words
 for people.
 
-`story open NAME` opens tutorials in the player. `a` starts or pauses autoplay
-(400 ms per event by default), `+`/`-` change its speed, and `space` steps.
+`story open NAME` opens any story in the player with autoplay running
+(400 ms per event by default). `space` or `a` pauses/resumes, `+`/`-` change
+the speed, and `l` or `right` steps and pauses autoplay.
 `play.action-pause` defaults to `3s` before and after each action, giving time
 to read its caption and see its result; `0s` uses the key playback speed.
 `[` and `]` jump to the previous/next action's reset point, paused; `r` replays
@@ -239,11 +240,11 @@ the player's reset point and action tree. First frames are built outside the
 update loop, cached for this index session, and clipped to the pane; a loading
 placeholder keeps motions responsive while a build runs.
 
-`enter` plays the focused story in the right pane. The player's usual step,
-autoplay and recording bindings work there; `q` or `esc` returns to the list
-on the same story. `z` opens the existing full-size player from either the
-list or the embedded player, keeping the current step when enlarging it;
-`p` still opens the full-size player, and `o` opens a story live for recording.
+`enter` plays the focused story in the right pane with autoplay running.
+`p` opens the full-size player with autoplay from the list, or enlarges the
+current player while keeping its step and playback state. `space` pauses or
+resumes; `l` or `right` steps. `o` opens a story live for recording, and `q`
+or `esc` returns from the player to the list on the same story.
 Hints come from binding rows, so user remaps appear in the footer and help.
 The existing pane grow/shrink/reset bindings resize the split.
 
@@ -258,7 +259,7 @@ Compared with Vim (checked against Vim 9.1's help):
 |---|---|---|
 | `j` / `k`, `gg` / `G` | `j`, `k`, `gg`, `G` | Similar: existing ochazuke list motions, including area spills |
 | `/`, `ctrl+d` / `ctrl+u` | `/`, `CTRL-D`, `CTRL-U` | Similar: existing list filter and half-page motions |
-| `ctrl+w o` / `:only` | `CTRL-W_o`, `:only` | Similar intent: `z` uses the full-size player page; the list is retained for return, rather than closing windows |
+| `ctrl+w o` / `:only` | `CTRL-W_o`, `:only` | Similar intent: `p` uses the full-size player page; the list is retained for return, rather than closing windows |
 
 Each host keeps its own state, under its name (`Config.Name`, default the
 slug of `Prog`): user stories (trimmed, copied, hand-made) in

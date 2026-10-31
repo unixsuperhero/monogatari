@@ -58,11 +58,18 @@ func TestBrowserSplitDefaultAndFocus(t *testing.T) {
 func TestBrowserEnterAndReturn(t *testing.T) {
 	h := browserHost(t)
 	keytest.Press(h, "j")
-	keytest.Press(h, "enter")
+	cmd := keytest.Press(h, "enter")
 	if h.play == nil || h.idx.Runtime.Page != "index" {
 		t.Fatalf("enter did not play in index: player=%v page=%s", h.play, h.idx.Runtime.Page)
 	}
+	if cmd == nil || !h.play.auto || !strings.Contains(screen(h), "auto") {
+		t.Fatal("enter did not start autoplay")
+	}
 	keytest.Press(h, "space")
+	if h.play.auto || h.play.at != 0 {
+		t.Fatal("space did not pause")
+	}
+	keytest.Press(h, "l")
 	if h.play.at != 1 {
 		t.Fatal("did not step")
 	}
@@ -171,8 +178,8 @@ func TestBrowserOptOutAndFullSize(t *testing.T) {
 	keytest.Press(h, "j")
 	keytest.Press(h, "enter")
 	p := h.play
-	keytest.Press(h, "space")
-	keytest.Press(h, "z")
+	keytest.Press(h, "l")
+	keytest.Press(h, "p")
 	if h.embedded || h.idx.Runtime.Page != "play" || h.play != p || p.at != 1 {
 		t.Fatal("zoom lost player position")
 	}
@@ -180,10 +187,19 @@ func TestBrowserOptOutAndFullSize(t *testing.T) {
 	if h.play != nil || h.idx.Runtime.Focus != "s1" {
 		t.Fatal("full-size return lost selection")
 	}
-	keytest.Press(h, "z")
-	if h.play == nil || h.idx.Runtime.Page != "play" {
+	cmd := keytest.Press(h, "p")
+	if h.play == nil || h.idx.Runtime.Page != "play" || !h.play.auto || cmd == nil {
 		t.Fatal("index full-size binding did not play")
 	}
+}
+
+func TestBrowserLiveOpen(t *testing.T) {
+	h := browserHost(t)
+	keytest.Press(h, "o")
+	if h.cur == nil || h.play != nil {
+		t.Fatal("o did not open live recording")
+	}
+	h.cur.Close()
 }
 
 func TestBrowserSettingIsExposedByHostCLI(t *testing.T) {
