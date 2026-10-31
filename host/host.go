@@ -181,6 +181,7 @@ func (t *Tool) Main(args []string) error {
 	}))
 	app.Add(
 		oden.Command{Name: "run", Summary: "play stories headless and check them (expect, else the golden frame); --from REF plays a recording", Run: func(_ context.Context, a []string) error { return t.Run(a) }},
+		oden.Command{Name: "export", Summary: "export checked stories as portable HTML frames in JSON; --out DIR --format json", Run: func(_ context.Context, a []string) error { return t.Export(a) }},
 		oden.Command{Name: "open", Summary: "open NAME: open one story live in the real chrome (q returns to the index)", Run: func(_ context.Context, a []string) error { return t.Open(a) }},
 		oden.Command{Name: "list", Summary: "the stories by area", Run: func(_ context.Context, a []string) error { return t.List(a) }},
 		oden.Command{Name: "history", Summary: "the ring of the last 5 recordings, newest first, and the saved ones", Run: func(_ context.Context, a []string) error { return t.History(a) }},

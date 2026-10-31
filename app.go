@@ -102,9 +102,12 @@ type Snapshot struct {
 	Warn   []string
 }
 
-// Options change how a session renders, never what it does.
+// Options configure a headless session.
 type Options struct {
 	Mono bool // the mono theme: no colour, as goldens compare
+	// TempRoot is an exclusively owned export sandbox. Empty uses random temp
+	// directories. Fixtures must use Env.TempDir for deterministic exports.
+	TempRoot string
 }
 
 // Session is one built story: the runtime, the model, the app's own
@@ -192,7 +195,7 @@ func build(apps []App, s *Story, opt Options, stateDir string) (ss *Session, err
 		}
 	}()
 	if s.State && stateDir == "" {
-		if stateDir, err = os.MkdirTemp("", "monogatari-state-"); err != nil {
+		if stateDir, err = sessionTempDir(opt, "state"); err != nil {
 			return nil, err
 		}
 	}
@@ -440,7 +443,7 @@ func (ss *Session) makeFiles() error {
 	if len(ss.Story.Files) == 0 {
 		return nil
 	}
-	dir, err := os.MkdirTemp("", "monogatari-files-")
+	dir, err := sessionTempDir(ss.opt, "files")
 	if err != nil {
 		return err
 	}
@@ -476,7 +479,7 @@ func (ss *Session) writeConfig() error {
 	if len(ss.Story.Config) == 0 {
 		return nil
 	}
-	dir, err := os.MkdirTemp("", "monogatari-config-")
+	dir, err := sessionTempDir(ss.opt, "config")
 	if err != nil {
 		return err
 	}
@@ -587,4 +590,23 @@ func label(inst *ochazuke.Instance) string {
 		return inst.Label
 	}
 	return inst.ID
+}
+
+// TempDir creates a fixture-owned directory. Close must remove it. During
+// export its name is stable within the exclusively owned export sandbox;
+// ordinary runs and tests get a random directory. Name must be one path part.
+func (e Env) TempDir(name string) (string, error) { return sessionTempDir(e.Options, name) }
+
+func sessionTempDir(opt Options, name string) (string, error) {
+	if name == "" || filepath.Base(name) != name || name == "." || name == ".." {
+		return "", fmt.Errorf("invalid temporary directory name %q", name)
+	}
+	if opt.TempRoot == "" {
+		return os.MkdirTemp("", "monogatari-"+name+"-")
+	}
+	path := filepath.Join(opt.TempRoot, name)
+	if err := os.Mkdir(path, 0o700); err != nil {
+		return "", err
+	}
+	return path, nil
 }

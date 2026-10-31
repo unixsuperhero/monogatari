@@ -529,6 +529,10 @@ func (r Result) OK() bool { return r.Skipped || (r.Err == nil && len(r.Failed) =
 type RunOptions struct {
 	Update bool // rewrite goldens
 	Golden bool // compare the final frame to a golden when the story has no final expect
+	// Observe sees the opening and each completed event, using the same driver
+	// and assertions as Run. The session is valid only during the callback.
+	Observe    func(RunPosition)
+	exportRoot string
 }
 
 // Run plays a story headless and checks it: each per-step expect after its
@@ -541,20 +545,21 @@ func (lib Library) Run(s *Story, opt RunOptions) (res Result) {
 		return res
 	}
 	if len(story.Actions) > 0 {
-		return lib.runActions(story)
+		return lib.runActions(story, opt)
 	}
-	ss, err := lib.Build(story, Options{Mono: true})
+	ss, err := lib.Build(story, Options{Mono: true, TempRoot: opt.exportRoot})
 	if err != nil {
 		res.Err = err
 		return res
 	}
-	d := NewDriver(ss, Options{Mono: true})
+	d := NewDriver(ss, Options{Mono: true, TempRoot: opt.exportRoot})
 	defer d.Close()
 	if err := d.Play(prefix, nil); err != nil {
 		res.Err = fmt.Errorf("base: %w", err)
 		return res
 	}
 	d.Trace = nil
+	opt.observe(d, -1, 0)
 	defer func() { res.Trace = d.Trace }()
 	var final []Expect
 	steps := map[int][]Expect{}
@@ -566,6 +571,7 @@ func (lib Library) Run(s *Story, opt RunOptions) (res Result) {
 		}
 	}
 	err = d.Play(story.Script, func(n int) error {
+		opt.observe(d, -1, n)
 		for _, e := range steps[n] {
 			for _, f := range Check(d.S, e) {
 				res.Failed = append(res.Failed, fmt.Sprintf("after %d: %s", n, f))
@@ -606,16 +612,16 @@ func (lib Library) Run(s *Story, opt RunOptions) (res Result) {
 
 // runActions checks each lesson in a fresh fixture, including fresh state
 // and config directories. Optional light expects never require goldens.
-func (lib Library) runActions(s *Story) Result {
+func (lib Library) runActions(s *Story, opt RunOptions) Result {
 	res := Result{Story: s, Skipped: s.Skip != ""}
 	for i, a := range s.Actions {
 		label := fmt.Sprintf("action %d (%s)", i+1, a.Label)
-		ss, err := lib.Build(s, Options{Mono: true})
+		ss, err := lib.Build(s, Options{Mono: true, TempRoot: opt.exportRoot})
 		if err != nil {
 			res.Err = errors.Join(res.Err, fmt.Errorf("%s: %w", label, err))
 			continue
 		}
-		d := NewDriver(ss, Options{Mono: true})
+		d := NewDriver(ss, Options{Mono: true, TempRoot: opt.exportRoot})
 		check := func(ex Expects, after int) {
 			for _, e := range ex {
 				if e.After == after {
@@ -625,10 +631,24 @@ func (lib Library) runActions(s *Story) Result {
 				}
 			}
 		}
-		err = d.Play(s.Setup, func(n int) error { check(s.Expect, n); return nil })
+		if i == 0 {
+			opt.observe(d, -1, 0)
+		}
+		err = d.Play(s.Setup, func(n int) error {
+			check(s.Expect, n)
+			if i == 0 {
+				opt.observe(d, -1, n)
+			}
+			return nil
+		})
 		if err == nil {
 			check(s.Expect, 0)
-			err = d.Play(a.Keys, func(n int) error { check(a.Expect, n); return nil })
+			opt.observe(d, i, 0)
+			err = d.Play(a.Keys, func(n int) error {
+				check(a.Expect, n)
+				opt.observe(d, i, n)
+				return nil
+			})
 			if err == nil {
 				check(a.Expect, 0)
 			}
