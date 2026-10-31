@@ -196,9 +196,9 @@ func TestTUIRecordsAndSaves(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	keytest.Press(h, "enter")
+	keytest.Press(h, "o")
 	if h.cur == nil {
-		t.Fatal("enter opened no story")
+		t.Fatal("o opened no story")
 	}
 	first := lib.Stories[0].Name
 	keytest.Press(h, "j")
@@ -219,7 +219,7 @@ func TestTUIRecordsAndSaves(t *testing.T) {
 		t.Fatalf("recording %+v", e.Rec)
 	}
 	// esc at the prompt keeps the next one in the ring.
-	keytest.Press(h, "enter")
+	keytest.Press(h, "o")
 	keytest.Press(h, "q")
 	keytest.Press(h, "esc")
 	if hist, _ := lib.Store.History(); len(hist) != 1 {

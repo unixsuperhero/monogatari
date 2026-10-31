@@ -311,6 +311,10 @@ func sortedKeys[V any](m map[string]V) []string {
 // shell is the catalog's runtime and command line.
 func (t *Tool) shell() *ocli.Shell {
 	r := ochazuke.NewRuntime()
+	r.Config().Dir = t.configDir()
+	if err := declareIndexSettings(r); err != nil {
+		panic(err)
+	}
 	lists := map[string]*ochazuke.List{}
 	for _, noun := range catalogNouns {
 		var opts []ochazuke.InstanceOption

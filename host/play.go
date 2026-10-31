@@ -92,6 +92,7 @@ func newPlayer(lib story.Library, s *story.Story) (*player, error) {
 	}
 	p := &player{lib: lib, story: resolved, prefix: prefix, speed: playDefault, action: -1}
 	if err := p.rebuild(0); err != nil {
+		p.Close()
 		return nil, err
 	}
 	return p, nil
@@ -480,7 +481,15 @@ func (p *player) tutorialRows() ([]playRow, int) {
 	}
 	for i, a := range p.story.Actions {
 		parent := len(rows)
-		rows = append(rows, playRow{Event: a.Label, Detail: a.Caption, Parent: true})
+		parentRow := playRow{Event: a.Label, Detail: a.Caption, Parent: true}
+		var final story.Expects
+		for _, e := range a.Expect {
+			if e.After == 0 {
+				final = append(final, e)
+			}
+		}
+		parentRow.Assert = summarize(final)
+		rows = append(rows, parentRow)
 		children := steps(a.Keys, a.Expect)
 		if i == p.action {
 			children = p.rows()
@@ -630,8 +639,16 @@ func (h *host) definePlay(r *ochazuke.Runtime) error {
 			return nil
 		}), "Record from here: keys go to the story and fill the script; ctrl+g stops").
 		Verb("save", iv(func() error { return h.savePlay() }), "Write the script so far as a recording and ask for a name").
+		Verb("fullsize", iv(func() error {
+			if h.play == nil {
+				return errors.New("no story is playing")
+			}
+			h.embedded = false
+			return r.OpenPage("play")
+		}), "Show the current player full size").
 		Verb("leave", iv(func() error { return h.leavePlay() }), "Back to the index").
 		Mode("normal").
+		Bind("z", ochazuke.Do("play.fullsize")).
 		Bind("i", ochazuke.Do("play.record")).
 		Bind("s", ochazuke.Do("play.save")).
 		Bind("space", ochazuke.Do("play.step")).
@@ -649,6 +666,7 @@ func (h *host) definePlay(r *ochazuke.Runtime) error {
 		Bind("-", ochazuke.Do("play.slower")).
 		Bind("q", ochazuke.Do("play.leave")).
 		Bind("esc", ochazuke.Do("play.leave"))
+	r.Instance("index-player", ochazuke.Parent("index"), ochazuke.Kind("play"))
 	_, err := r.AddPage("play", "Play", h.renderPlay, ochazuke.Kind("play"))
 	return err
 }
@@ -663,6 +681,10 @@ func (h *host) openPlay(s *story.Story) {
 	if h.play != nil {
 		h.play.Close()
 	}
+	if inst := h.idx.Runtime.Instances[h.idx.Runtime.Focus]; inst != nil && inst.Noun == "entry" {
+		h.returnFocus = inst.ID
+	}
+	h.embedded = false
 	h.play = p
 	if err := h.idx.Runtime.OpenPage("play"); err != nil {
 		h.msg = "play " + s.Name + ": " + err.Error()
@@ -677,7 +699,14 @@ func (h *host) leavePlay() error {
 		h.play.Close()
 		h.play = nil
 	}
-	return h.idx.Runtime.OpenPage("index")
+	h.embedded = false
+	if err := h.idx.Runtime.OpenPage("index"); err != nil {
+		return err
+	}
+	if h.returnFocus != "" {
+		return h.idx.Runtime.SetFocus(h.returnFocus)
+	}
+	return nil
 }
 
 // savePlay writes the script so far into the history ring and asks for a

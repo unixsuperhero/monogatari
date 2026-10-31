@@ -232,6 +232,34 @@ A relation is one handler on both nouns: `story list --app A` is
 `application stories`, `fixture list --app A` is `application fixtures`,
 `recording list --story S` is `story recordings`.
 
+With no command, the index splits into the existing story lists on the left
+and a preview on the right. Moving focus updates the title, area, fixture,
+terminal size, script (keys and assertions), and first frame. Tutorials use
+the player's reset point and action tree. First frames are built outside the
+update loop, cached for this index session, and clipped to the pane; a loading
+placeholder keeps motions responsive while a build runs.
+
+`enter` plays the focused story in the right pane. The player's usual step,
+autoplay and recording bindings work there; `q` or `esc` returns to the list
+on the same story. `z` opens the existing full-size player from either the
+list or the embedded player, keeping the current step when enlarging it;
+`p` still opens the full-size player, and `o` opens a story live for recording.
+Hints come from binding rows, so user remaps appear in the footer and help.
+The existing pane grow/shrink/reset bindings resize the split.
+
+`index.preview` defaults to `true`. Set it to `false` through the Settings
+page, `settings set index.preview false`, or the host's `settings.json` to
+restore the single-list index and live opening with `enter`. The CLI and TUI
+read the same host config directory; no app-specific wiring is required.
+
+Compared with Vim (checked against Vim 9.1's help):
+
+| Vim form | `:help` tag | Story index |
+|---|---|---|
+| `j` / `k`, `gg` / `G` | `j`, `k`, `gg`, `G` | Similar: existing ochazuke list motions, including area spills |
+| `/`, `ctrl+d` / `ctrl+u` | `/`, `CTRL-D`, `CTRL-U` | Similar: existing list filter and half-page motions |
+| `ctrl+w o` / `:only` | `CTRL-W_o`, `:only` | Similar intent: `z` uses the full-size player page; the list is retained for return, rather than closing windows |
+
 Each host keeps its own state, under its name (`Config.Name`, default the
 slug of `Prog`): user stories (trimmed, copied, hand-made) in
 `$XDG_CONFIG_HOME/NAME/stories`, recordings (the ring of 5 and the saved

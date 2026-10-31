@@ -29,6 +29,9 @@ func TestIndexIsATablePerArea(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := h.idx.Runtime.Settings().Set("index.preview", false); err != nil {
+		t.Fatal(err)
+	}
 	var out strings.Builder
 	for _, width := range []int{100, 64, 40} {
 		h.Update(tea.WindowSizeMsg{Width: width, Height: 16})
