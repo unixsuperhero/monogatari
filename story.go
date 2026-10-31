@@ -212,7 +212,8 @@ type Expect struct {
 	// HighlightedText is text every highlighted row holds (the selected row's label).
 	HighlightedText string `json:"highlightedText,omitempty"`
 	// Cell is the text of a table's current cell (drawn reverse and
-	// underlined inside its row, dimmed or not); "" for none.
+	// underlined inside its row, or reverse on a background, dimmed or
+	// not); "" for none.
 	Cell *string `json:"cell,omitempty"`
 	// Badge is the mode badge at the right of the title row (full
 	// chrome): its whole text, padded by a cell on each side, followed by

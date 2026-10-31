@@ -17,8 +17,8 @@ import (
 // reverse video, "r|" when its only reverse video is dimmed (faint: an
 // unfocused list's selected row, a highlight beneath a modal) and " |"
 // otherwise, so goldens pin the highlight without colour. A highlighted
-// row holding a table's current cell (reverse and underline together)
-// reads "C|", dimmed "c|".
+// row holding a table's current cell (reverse and underline together,
+// or reverse on a background: cellText) reads "C|", dimmed "c|".
 func Golden(frame string) string {
 	var b strings.Builder
 	for _, row := range strings.Split(frame, "\n") {
@@ -82,10 +82,13 @@ func highlights(row string) (full, dimmed bool) {
 
 // cellText is the text of a row's current cell, trimmed: the text drawn
 // underlined in reverse (a table's current cell inside its highlighted
-// row) or underlined on a background colour (the current cell where
-// highlights cross, ochazuke's intersect tone, drawn out of the reverse
-// bar on a row that holds one), followed along the row's SGR state; " "
-// for a blank cell and "" when the row holds none.
+// row), reverse with a background colour (the current cell in ochazuke's
+// list.cell.cursor tone, list.cell-cursor background: reverse video with
+// the tone's colours swapped, which nothing else draws) or underlined on
+// a background colour (the current cell where highlights cross,
+// ochazuke's intersect tone, drawn out of the reverse bar on a row that
+// holds one), followed along the row's SGR state; " " for a blank cell
+// and "" when the row holds none.
 func cellText(row string) string {
 	var b strings.Builder
 	found, reverse, underline, bg := false, false, false, false
@@ -128,7 +131,7 @@ func cellText(row string) string {
 			i = j
 			continue
 		}
-		if underline && (reverse || bg && bar) {
+		if underline && (reverse || bg && bar) || reverse && bg {
 			found = true
 			b.WriteByte(row[i])
 		}
