@@ -8,6 +8,7 @@
       {"key": "q", "action": "app.quit"}
     ]},
     {"context": "play/normal", "bindings": [
+      {"key": "alt+?", "action": "ochazuke.setting.edit", "args": {"name": "play.inspector"}, "hidden": true},
       {"key": "p", "action": "play.fullsize", "when": "index-preview"},
       {"key": "i", "action": "play.record"},
       {"key": "s", "action": "play.save"},
@@ -32,6 +33,7 @@
       {"key": "esc", "action": "field.cancel"}
     ]},
     {"context": "index/normal", "bindings": [
+      {"key": "alt+?", "action": "ochazuke.setting.edit", "args": {"name": "play.inspector"}, "hidden": true},
       {"key": "esc", "action": "index.cancel-start", "when": "play-starting"}
     ]}
   ]

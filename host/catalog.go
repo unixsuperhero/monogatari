@@ -327,6 +327,9 @@ func (t *Tool) shell() *ocli.Shell {
 	if err := declareIndexSettings(r); err != nil {
 		panic(err)
 	}
+	if err := declarePlaySettings(r); err != nil {
+		panic(err)
+	}
 	lists := map[string]*ochazuke.List{}
 	for _, noun := range catalogNouns {
 		var opts []ochazuke.InstanceOption

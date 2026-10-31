@@ -27,9 +27,10 @@ func TestPlayInspectorShowsYankedPathOutsideFrame(t *testing.T) {
 	if s == nil {
 		t.Fatal("no copy-path tutorial")
 	}
-	h.Update(startStory{s})
-	keytest.Press(h, "space") // reach the action's reset point
-	keytest.Press(h, "space") // y
+	_, start := h.Update(startStory{s})
+	settlePlayerCommand(t, h, start)
+	keytest.Press(h, "l") // reach the action's reset point, pausing autoplay
+	keytest.Press(h, "l") // y
 	p := h.play
 	if p.at != 1 || p.action != 0 || len(p.failures()) != 0 {
 		t.Fatalf("step failed: %v", p.failures())
@@ -85,7 +86,7 @@ func TestPlayInspectorShowsYankedPathOutsideFrame(t *testing.T) {
 	if strings.Contains(screen(h), `register " = ".items[3].owner.id"`) {
 		t.Fatal("back kept the future register")
 	}
-	keytest.Press(h, "space")
+	keytest.Press(h, "l")
 	if !strings.Contains(screen(h), "Δ register") {
 		t.Fatal("replay did not highlight the yank")
 	}
@@ -123,5 +124,31 @@ func TestPlayInspectorWritesAndNarrowFrames(t *testing.T) {
 	p.d.S.R.AddInspectField("json.path", nil)
 	if !strings.Contains(ansi.Strip(strings.Join(p.inspectorStrip(style, 100), " ")), `Δ cleared "field:json.path"`) {
 		t.Fatal("removed field not highlighted")
+	}
+}
+
+func TestBrowserPreviewInspectorAndToggle(t *testing.T) {
+	h := browserHost(t)
+	preview := h.previews[h.focusedStory()]
+	if preview.player == nil || preview.player.d != nil {
+		t.Fatal("expected a cached preview with its session closed")
+	}
+	want := "mode normal"
+	if !strings.Contains(screen(h), want) {
+		t.Fatal("cached preview lost its inspector", screen(h))
+	}
+	keytest.Press(h, "alt+?")
+	if h.idx.Runtime.Settings().Bool("play.inspector") || strings.Contains(screen(h), want) {
+		t.Fatal("index inspector toggle failed", screen(h))
+	}
+	settlePlayerCommand(t, h, keytest.Press(h, "enter"))
+	keytest.Press(h, "alt+?")
+	if !h.idx.Runtime.Settings().Bool("play.inspector") || !strings.Contains(screen(h), want) {
+		t.Fatal("pane player inspector toggle failed", screen(h))
+	}
+	keytest.Press(h, "p")
+	keytest.Press(h, "alt+?")
+	if h.idx.Runtime.Settings().Bool("play.inspector") || strings.Contains(screen(h), want) {
+		t.Fatal("full-size inspector toggle failed", screen(h))
 	}
 }

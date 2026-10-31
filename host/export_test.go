@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	story "github.com/unixsuperhero/monogatari"
@@ -52,8 +51,29 @@ func TestExportSelectionAndFailures(t *testing.T) {
 	out := t.TempDir()
 	runTool(t, tool, "export", "tutorials", "--out", out)
 	data, _ := os.ReadFile(filepath.Join(out, "index.json"))
-	if strings.Count(string(data), `"file"`) != 2 {
+	var index struct {
+		Stories []struct{ Area, File string }
+	}
+	if err := json.Unmarshal(data, &index); err != nil {
+		t.Fatal(err)
+	}
+	core, err := tool.cfg.core("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := 0
+	for _, s := range core {
+		if s.Area == "tutorials" && s.Skip == "" {
+			want++
+		}
+	}
+	if len(index.Stories) != want {
 		t.Fatalf("area selection: %s", data)
+	}
+	for _, entry := range index.Stories {
+		if entry.Area != "tutorials" || !filepath.IsLocal(entry.File) {
+			t.Fatalf("wrong area or nonportable path: %+v", entry)
+		}
 	}
 	for _, args := range [][]string{{"export"}, {"export", "--out", out, "--format", "svg"}, {"export", "unknown", "--out", out}} {
 		if err := tool.Main(args); err == nil {

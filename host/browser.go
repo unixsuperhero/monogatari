@@ -250,6 +250,12 @@ func (h *host) renderPreview(w, ht int) string {
 		sample := dim.Render("x")
 		open := sample[:strings.Index(sample, "x")]
 		frame := boxFrame(pv.frame, " First frame ", fmt.Sprintf(" %dx%d ", sw, sh), sw)
+		var strip []string
+		if h.idx.Runtime.Settings().Bool("play.inspector") {
+			strip = p.inspectorStrip(styles, max(1, min(sw+2, w)))
+			strip = strip[:min(len(strip), max(0, ht-len(lines)))]
+			frame = frame[:min(len(frame), max(0, ht-len(lines)-len(strip)))]
+		}
 		for _, row := range frame {
 			if open != "" {
 				row = strings.ReplaceAll(row, "\x1b[0m", "\x1b[0m"+open)
@@ -258,6 +264,7 @@ func (h *host) renderPreview(w, ht int) string {
 			}
 			lines = append(lines, row)
 		}
+		lines = append(lines, strip...)
 	}
 	return strings.Join(lines, "\n")
 }

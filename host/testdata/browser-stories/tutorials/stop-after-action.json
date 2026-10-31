@@ -1,0 +1,72 @@
+{
+  "name": "stop-after-action",
+  "area": "tutorials",
+  "app": "tutorial-player",
+  "width": 120,
+  "height": 32,
+  "values": {
+    "play.stop-after-action": true
+  },
+  "script": [
+    {
+      "tick": "output"
+    },
+    {
+      "tick": "output"
+    },
+    {
+      "tick": "output"
+    },
+    {
+      "tick": "output"
+    },
+    {
+      "tick": "output"
+    },
+    "space",
+    {
+      "tick": "output"
+    }
+  ],
+  "expect": [
+    {
+      "after": 3,
+      "contains": [
+        "step 1/1",
+        "auto",
+        "a3"
+      ]
+    },
+    {
+      "after": 4,
+      "contains": [
+        "step 0/1",
+        "paused",
+        "reset point",
+        "a2"
+      ]
+    },
+    {
+      "after": 5,
+      "contains": [
+        "step 0/1",
+        "paused",
+        "a2"
+      ]
+    },
+    {
+      "after": 6,
+      "contains": [
+        "step 0/1",
+        "auto"
+      ]
+    },
+    {
+      "contains": [
+        "step 1/1",
+        "end",
+        "a1"
+      ]
+    }
+  ]
+}

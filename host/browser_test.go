@@ -268,7 +268,7 @@ func browserApp() story.App {
 }
 
 func TestBrowserStories(t *testing.T) {
-	Test(t, Config{Name: "browser-story", Apps: []story.App{reviewBrowserApp()}, Stories: os.DirFS(filepath.Join("testdata", "browser-stories"))})
+	Test(t, Config{Name: "browser-story", Apps: []story.App{reviewBrowserApp(), tutorialPlayerApp()}, Stories: os.DirFS(filepath.Join("testdata", "browser-stories"))})
 }
 
 func TestBrowserTutorialPreview(t *testing.T) {

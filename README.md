@@ -176,6 +176,13 @@ for people.
 the speed, and `l` or `right` steps and pauses autoplay.
 `play.action-pause` defaults to `3s` before and after each action, giving time
 to read its caption and see its result; `0s` uses the key playback speed.
+`play.stop-after-action` defaults to `false`. Turn it on in Settings or with
+`:set play.stop-after-action=true` to pause at the next action's reset point
+after an action finishes; `space` continues. Setup still flows into the first
+action, and the last action ends on its result. Ordinary stories are unaffected.
+The host CLI exposes the same player settings. The story
+`host/testdata/browser-stories/tutorials/stop-after-action.json` checks the pause
+and continuation.
 `[` and `]` jump to the previous/next action's reset point, paused; `r` replays
 from the opening frame. Tutorials show one tree: setup steps end at a reset
 row, followed by action titles with captions as detail and key steps as
@@ -189,7 +196,10 @@ The player shows a state strip below the preview (`play.inspector`, default
 `true`). Changed values appear first with an accent and `Δ`: register text,
 messages with their tone, reported writes, app fields, and mode/focus or
 selection changes. Values wrap into at most three rows; narrow views clip the
-preview to leave room for the strip. `:set play.inspector=false` hides it.
+preview to leave room for the strip. `alt+?` toggles it in the index and player;
+`:set play.inspector=false` hides it. Cached first-frame previews retain their
+opening state after the fixture session closes. The toggle is a row in
+`host/bindings.json` using the existing `setting.edit` verb.
 The strip reads ochazuke's `Runtime.Inspect()` and the app seam's existing write
 log. It stays outside the app frame: `expect`, goldens and `story run` output
 are unchanged. See `host/testdata/stories/tutorials/copy-path.json` and its
@@ -210,6 +220,8 @@ legend when round-tripped. See
 
 Compared with Vim: tutorial actions and reset replay have no Vim counterpart;
 they are player controls, and never enter the application's key stream.
+Stopping after an action likewise has no Vim counterpart: it waits at the
+next lesson's reset point rather than pausing a Vim macro.
 
 `monogatari/host` is the tester an app mounts. A `Config` names the host
 and what it runs:
@@ -292,6 +304,22 @@ visible with a `▶` marker; `index.playing-row=false` disables this follow and 
 page, `settings set index.preview false`, or the host's `settings.json` to
 restore the single-list index and live opening with `enter`. The CLI and TUI
 read the same host config directory; no app-specific wiring is required.
+
+Browser and player defaults (all available in Settings):
+
+| Setting | Default | Effect |
+|---|---|---|
+| `index.preview` | `true` | Split index with cached preview; off restores the single list |
+| `play.start-indicator` | `true` | Show “Starting…” while constructing a player |
+| `story.build-timeout` | `5s` | Bound preview and player startup waits; must be positive |
+| `play.follow-focus` | `true` | Cancel startup when focus leaves its story |
+| `index.playing-row` | `true` | Keep the playing story visible and mark it with `▶` |
+| `scrolloff` | `2` | Screen rows of context around focus; `0` disables the margin |
+| `play.inspector` | `true` | State strip outside the app frame; `alt+?` toggles it |
+| `play.stop-after-action` | `false` | Wait for `space` at the next reset after each action |
+
+The host declares `scrolloff` only when the framework has not declared it;
+an existing framework default or user value remains in charge.
 
 Compared with Vim (checked against Vim 9.1's help):
 

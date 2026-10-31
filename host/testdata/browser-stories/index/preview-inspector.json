@@ -1,0 +1,29 @@
+{
+  "name": "preview-inspector",
+  "area": "index",
+  "app": "browser",
+  "fixture": "index",
+  "width": 120,
+  "height": 40,
+  "script": [
+    "alt+?",
+    "alt+?"
+  ],
+  "expect": [
+    {
+      "after": 1,
+      "contains": [
+        "First frame"
+      ],
+      "lacks": [
+        "mode normal (declared normal)"
+      ]
+    },
+    {
+      "contains": [
+        "First frame",
+        "mode normal (declared normal)"
+      ]
+    }
+  ]
+}

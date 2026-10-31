@@ -1,5 +1,5 @@
 -- width 100 --
-  ◆ rows-story                                                                             NORMAL
+  ◆ rows-story                                                                       NORMAL
    › Stories  Play
   ────────────────────────────────────────────────────────────────────────────────────────────────
   LISTS ──────────────────────────────────────────────────────────────────────────────────────── 2
@@ -16,7 +16,7 @@
   enter entry.open · p entry.play · q app.quit · space list.mark · : palette.open · ? bindings.he…
 
 -- width 64 --
-  ◆ rows-story                                         NORMAL
+  ◆ rows-story                                   NORMAL
    › Stories  Play
   ────────────────────────────────────────────────────────────
   LISTS ──────────────────────────────────────────────────── 2
@@ -33,7 +33,7 @@
   enter entry.open · p entry.play · q app.quit · space list.m…
 
 -- width 40 --
-  ◆ rows-story                 NORMAL
+  ◆ rows-story           NORMAL
    › Stories  Play
   ────────────────────────────────────
   LISTS ──────────────────────────── 2

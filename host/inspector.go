@@ -13,7 +13,7 @@ import (
 // belongs in the player, and the story frame is never changed for the strip.
 func (p *player) inspection() ochazuke.Inspection {
 	if p.d == nil {
-		return ochazuke.Inspection{}
+		return p.before // cached first-frame previews retain the opening snapshot
 	}
 	state := p.d.S.R.Inspect()
 	for _, path := range p.d.S.Writes() {

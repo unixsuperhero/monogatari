@@ -610,16 +610,7 @@ func summarize(ex []story.Expect) string {
 // runtime. The page's instance is of the play noun, so its rows answer
 // while the page is open and the footer's hints derive from them.
 func (h *host) definePlay(r *ochazuke.Runtime) error {
-	if err := r.DeclareSetting(ochazuke.Setting{Name: "play.inspector", Type: ochazuke.SettingBoolean, Default: true, Description: "Show live state below the preview, highlighting changes from the previous step"}); err != nil {
-		return err
-	}
-	if err := r.DeclareSetting(ochazuke.Setting{Name: "play.tree", Type: ochazuke.SettingBoolean, Default: true, Description: "Show tutorials in one tree: setup, reset point, and action titles with their key steps; off shows only the active segment"}); err != nil {
-		return err
-	}
-	if err := r.DeclareSetting(ochazuke.Setting{Name: "play.captions", Type: ochazuke.SettingBoolean, Default: true, Description: "Show tutorial captions and step notes in the player"}); err != nil {
-		return err
-	}
-	if err := r.DeclareSetting(ochazuke.Setting{Name: "play.action-pause", Type: ochazuke.SettingDuration, Default: "3s", Description: "Pause before and after tutorial actions; 0s uses the key playback speed"}); err != nil {
+	if err := declarePlaySettings(r); err != nil {
 		return err
 	}
 	iv := func(fn func() error) any {
@@ -672,6 +663,16 @@ func (h *host) definePlay(r *ochazuke.Runtime) error {
 	r.Instance("index-player", ochazuke.Parent("index"), ochazuke.Kind("play"))
 	_, err := r.AddPage("play", "Play", h.renderPlay, ochazuke.Kind("play"))
 	return err
+}
+
+func declarePlaySettings(r *ochazuke.Runtime) error {
+	return r.DeclareSetting(
+		ochazuke.Setting{Name: "play.inspector", Type: ochazuke.SettingBoolean, Default: true, Description: "Show live state below the preview, highlighting changes from the previous step"},
+		ochazuke.Setting{Name: "play.tree", Type: ochazuke.SettingBoolean, Default: true, Description: "Show tutorials in one tree: setup, reset point, and action titles with their key steps; off shows only the active segment"},
+		ochazuke.Setting{Name: "play.captions", Type: ochazuke.SettingBoolean, Default: true, Description: "Show tutorial captions and step notes in the player"},
+		ochazuke.Setting{Name: "play.action-pause", Type: ochazuke.SettingDuration, Default: "3s", Description: "Pause before and after tutorial actions; 0s uses the key playback speed"},
+		ochazuke.Setting{Name: "play.stop-after-action", Type: ochazuke.SettingBoolean, Default: false, Description: "Pause tutorial autoplay at the next reset point after each action; space continues"},
+	)
 }
 
 // openPlay starts a cancellable job. Fixture construction never runs on the
@@ -833,9 +834,11 @@ func (h *host) onPlayTick(t playTick) tea.Cmd {
 	if p == nil || !p.auto || t.gen != p.gen {
 		return nil
 	}
+	resetAfterAction := p.action >= 0 && p.at == len(p.script())
 	p.step()
-	if p.done() {
+	if p.done() || resetAfterAction && h.idx.Runtime.Settings().Bool("play.stop-after-action") {
 		p.auto = false
+		p.gen++
 		return nil
 	}
 	return h.playTimer()
