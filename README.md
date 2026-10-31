@@ -352,3 +352,44 @@ generator.
 ## License
 
 MIT; see [LICENSE](LICENSE).
+
+## Export checked stories for the web
+
+Every host has `story export [NAME|AREA...] --out DIR --format json`. Like
+`story run`, it resolves bases, checks per-step and final expectations, and
+checks an ordinary script's golden when it has no final expectation. A failing
+or skipped story produces an error. The whole selection is checked before
+writing any output. Selection order follows the story files, with duplicates
+removed. Existing files outside `index.json`'s inventory are not deleted.
+
+The output is `index.json` plus `<area>/<file-stem>.json` per story. Version 1
+records the story's name, app, fixture and cell size, and chapters containing
+steps with labels, captions, key caps, authored expectations and styled HTML.
+A tutorial has a setup chapter ending at its reset point, then one chapter per
+action. Each action includes its freshly replayed reset frame followed by its
+events. Ordinary scripts include the opening and each event. Jobs, ticks and
+restarts are labelled events; they do not invent keyboard presses.
+
+Frames come from `Session.Frame`, just as in the player. Ultraviolet, Bubble
+Tea's cell model, decodes ANSI; adjacent cells with identical styles share an
+HTML span. Text is escaped, wide-cell continuations are omitted, colours and
+attributes are carried into CSS, and blink remains static. Default terminal
+colours use `--frame-fg` and `--frame-bg` CSS variables. Authored story themes
+are preserved, including mono when that is what the runner renders.
+
+Exports have no timestamps. Use a stable, isolated `TMPDIR` when exporting:
+paths can affect clipping before a frame is captured. Export exclusively
+creates `$TMPDIR/monogatari-export` and refuses to reuse an existing directory;
+it removes only its own sandbox on completion. Fixtures should allocate their
+owned directories with `Env.TempDir("fixture-name")` and remove them in `Close`.
+This gives export a stable path and ordinary tests a random temp directory.
+A fixture that reads clocks, randomness, external services or other files must
+fake them as it does for headless tests. The same stories, fixture inputs and
+sandbox path produce byte-identical JSON, suitable for a fresh-export check.
+
+Consumers read the index rather than scanning output directories. Each HTML
+fragment belongs inside a monospace `pre` with preserved whitespace; it is not
+a complete page. No browser player, app mock or external asset is required by
+the export format. The native index and player are unchanged.
+
+Compared with Vim: exporting recorded app frames has no Vim counterpart.
