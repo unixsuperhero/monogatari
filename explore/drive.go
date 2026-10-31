@@ -257,6 +257,12 @@ func (ss *session) render(w, h int) (view tea.View, err error) {
 	}()
 	ow, oh := ss.m.Width, ss.m.Height
 	ss.m.Width, ss.m.Height = w, h
+	// A frame is an explicit snapshot: timers are dropped here, so the frame
+	// tick a coalescing model (ochazuke's render.max-fps) schedules never
+	// arrives. Older ochazuke has no InvalidateRender and needs none.
+	if f, ok := any(ss.m).(interface{ InvalidateRender() }); ok {
+		f.InvalidateRender()
+	}
 	view = ss.program().View()
 	ss.m.Width, ss.m.Height = ow, oh
 	return view, nil

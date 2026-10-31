@@ -522,6 +522,7 @@ func (ss *Session) Frame() string {
 	w, h := ss.Story.Size()
 	ss.size()
 	var rows []string
+	flushFrame(ss.M)
 	view := ss.View()
 	ss.cursor = view.Cursor
 	switch ss.Story.Chrome {
@@ -613,4 +614,16 @@ func sessionTempDir(opt Options, name string) (string, error) {
 		return "", err
 	}
 	return path, nil
+}
+
+// flushFrame makes the next View compose the model's current state. A frame
+// is an explicit snapshot: the driver holds the frame tick a coalescing
+// model (ochazuke's render.max-fps) schedules for background messages, and
+// its clock stands still, so without this a snapshot taken after a job
+// lands would show the frame before it. Older ochazuke has no coalescing
+// and no InvalidateRender; the assertion keeps that requirement building.
+func flushFrame(m *ochazuke.Model) {
+	if f, ok := any(m).(interface{ InvalidateRender() }); ok {
+		f.InvalidateRender()
+	}
 }
