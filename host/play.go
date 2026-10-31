@@ -25,7 +25,8 @@ type player struct {
 	d      *story.Driver
 	at     int // events of the script played so far
 	err    error
-	action int // -1: setup (or an ordinary script); otherwise Actions index
+	before ochazuke.Inspection // state before the most recent step
+	action int                 // -1: setup (or an ordinary script); otherwise Actions index
 
 	steps   map[int][]story.Expect // expects keyed by After; 0 is the final set
 	results map[int][]string       // After -> failures (an empty slice is a pass); unset while unchecked
@@ -146,6 +147,7 @@ func (p *player) rebuild(n int) error {
 		}
 	}
 	p.d.Trace = nil
+	p.before = p.inspection()
 	for i := 0; i < n && p.at < len(p.script()); i++ {
 		p.step()
 	}
@@ -205,6 +207,7 @@ func (p *player) step() {
 		p.err = p.rebuild(0)
 		return // leave the reset frame and caption visible for one tick
 	}
+	p.before = p.inspection()
 	e := p.script()[p.at]
 	if err := p.d.Step(e); err != nil {
 		p.err = fmt.Errorf("event %d (%s): %w", p.at+1, e, err)
@@ -311,6 +314,7 @@ func (p *player) record(msg tea.Msg) {
 	if ev == nil {
 		return
 	}
+	p.before = p.inspection()
 	if err := p.d.Step(*ev); err != nil {
 		p.err = err
 		return
@@ -321,12 +325,18 @@ func (p *player) record(msg tea.Msg) {
 // poll plays what the session's jobs and panes produced since the last
 // poll and, once a second, a fake pane's output line.
 func (p *player) poll() {
-	for _, ev := range p.d.Arrived() {
+	before := p.inspection()
+	arrived := p.d.Arrived()
+	if len(arrived) > 0 {
+		p.before = before
+	}
+	for _, ev := range arrived {
 		p.recorded(ev)
 	}
 	p.polls++
 	if p.polls%int(time.Second/recordPoll) == 0 && p.d.S.HasPane() {
 		ev := story.Event{Tick: "output"}
+		p.before = p.inspection()
 		if err := p.d.Step(ev); err == nil {
 			p.recorded(ev)
 		}
@@ -587,6 +597,9 @@ func summarize(ex []story.Expect) string {
 // runtime. The page's instance is of the play noun, so its rows answer
 // while the page is open and the footer's hints derive from them.
 func (h *host) definePlay(r *ochazuke.Runtime) error {
+	if err := r.DeclareSetting(ochazuke.Setting{Name: "play.inspector", Type: ochazuke.SettingBoolean, Default: true, Description: "Show live state below the preview, highlighting changes from the previous step"}); err != nil {
+		return err
+	}
 	if err := r.DeclareSetting(ochazuke.Setting{Name: "play.tree", Type: ochazuke.SettingBoolean, Default: true, Description: "Show tutorials in one tree: setup, reset point, and action titles with their key steps; off shows only the active segment"}); err != nil {
 		return err
 	}
@@ -772,7 +785,13 @@ func (h *host) renderPlay(_ *ochazuke.Runtime, w, ht int) ochazuke.Block {
 			caption = append(caption, "")
 		}
 	}
-	sidebar := p.sidebar(s, side, max(0, ht-len(caption)))
+	available := max(0, ht-len(caption))
+	if h.idx.Runtime.Settings().Bool("play.inspector") {
+		strip := p.inspectorStrip(s, max(1, min(sw+2, w-side-1)))
+		strip = strip[:min(len(strip), available)]
+		box = append(box[:min(len(box), max(0, available-len(strip)))], strip...)
+	}
+	sidebar := p.sidebar(s, side, available)
 	if tree {
 		sidebar = p.treeSidebar(s, side, ht, showCaptions)
 	}

@@ -19,7 +19,8 @@ type rowsSeed struct {
 		ID   string `json:"id"`
 		Rows int    `json:"rows"`
 	} `json:"lists"`
-	Focus string `json:"focus,omitempty"`
+	Focus  string            `json:"focus,omitempty"`
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 // rowsApp is the host tests' app, as the demo is o-story's: a page of the
@@ -57,7 +58,13 @@ func buildRows(env story.Env) (story.Built, error) {
 	if err != nil {
 		return story.Built{}, err
 	}
-	r.Define("row")
+	r.Define("row").Verb("copy", func(c ochazuke.Ctx) ochazuke.Result {
+		if err := r.StoreYank(ochazuke.Yank{Text: c.Instance.Label, Shape: "char"}, "", false); err != nil {
+			return ochazuke.Failed(err)
+		}
+		c.Info("copied path")
+		return ochazuke.Done(c.Instance.Label)
+	}, "Copy row label").Mode("normal").Bind("y", ochazuke.Do("row.copy").Hide())
 	r.Define("app").Mode("normal").Bind("q", ochazuke.Do("app.quit"))
 	lists := map[string]*ochazuke.List{}
 	if _, err := r.AddPage("main", "Main", func(_ *ochazuke.Runtime, w, h int) ochazuke.Block {
@@ -75,7 +82,11 @@ func buildRows(env story.Env) (story.Built, error) {
 		var items []ochazuke.ListItem
 		for i := range l.Rows {
 			id := fmt.Sprintf("%s%d", l.ID, i+1)
-			items = append(items, ochazuke.ListItem{ID: id, Label: id, Noun: "row"})
+			label := id
+			if seed.Labels[id] != "" {
+				label = seed.Labels[id]
+			}
+			items = append(items, ochazuke.ListItem{ID: id, Label: label, Noun: "row"})
 		}
 		list, err := r.AddList(l.ID, items, ochazuke.Parent("main"))
 		if err != nil {

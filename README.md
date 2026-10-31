@@ -184,6 +184,22 @@ view while steps scroll. `play.tree` defaults to `true`; false restores the
 active-segment column. The host setting `play.captions` defaults to `true`; `:set
 play.captions false` hides captions and notes.
 
+The player shows a state strip below the preview (`play.inspector`, default
+`true`). Changed values appear first with an accent and `Δ`: register text,
+messages with their tone, reported writes, app fields, and mode/focus or
+selection changes. Values wrap into at most three rows; narrow views clip the
+preview to leave room for the strip. `:set play.inspector=false` hides it.
+The strip reads ochazuke's `Runtime.Inspect()` and the app seam's existing write
+log. It stays outside the app frame: `expect`, goldens and `story run` output
+are unchanged. See `host/testdata/stories/tutorials/copy-path.json` and its
+player frame in `host/testdata/inspector.golden`.
+
+Compared with Vim: this combines the register visibility of `:registers`
+(`:help :registers`) and the diagnostic purpose of `:messages`/`:verbose`
+(`:help :messages`, `:help :verbose`). It retains the latest message and shows
+state changes for one step. It does not start a `:redir` session (`:help :redir`);
+structured export belongs to the inspected runtime's `state inspect` verb.
+
 All stories support native `notes: [{"after": 1, "note": "What changed"}]`;
 actions can also have their own `notes`. An event can carry `note` beside its
 `key`, `type`, `paste` or job, shown before that event plays. Apps do not need
