@@ -254,16 +254,23 @@ zoom binding is available while `index.preview` is on. `space` pauses or
 resumes; `l` or `right` steps. `o` opens a story live for recording.
 
 Player construction runs outside the update loop. The pane shows “Starting…”
-while keys remain available; `esc` cancels startup. `play.start-indicator`
+while keys remain available; moving focus or `esc` cancels startup.
+`play.follow-focus=false` keeps a start running after focus moves.
+`play.start-indicator`
 defaults to `true` and can hide that indicator. `story.build-timeout` defaults
 to `5s` and must be positive; it bounds preview and player startup waits. The
 fixture API has no cancellation context, so an abandoned fixture can keep
-running until it returns, when its session is closed. Startup errors and
+running until it returns, when its session is closed. Each preview/player
+slot runs at most one fixture; newer requests wait for its cleanup within
+the same build timeout. Startup errors and
 recording results use the full-width status line and clear on the next key.
 Hints come from the embedded `host/bindings.json` default rows, so user remaps
 appear in the footer and help. Enter falls through from the guarded in-pane
 binding to `entry.open` when the preview setting is off.
 The existing pane grow/shrink/reset bindings resize the split.
+The list keeps two rows around focus by default (`scrolloff=2`); `scrolloff=0`
+disables that margin. While a story plays in the pane, its list row stays
+visible with a `▶` marker; `index.playing-row=false` disables this follow and marker.
 
 `index.preview` defaults to `true`. Set it to `false` through the Settings
 page, `settings set index.preview false`, or the host's `settings.json` to

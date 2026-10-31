@@ -33,7 +33,10 @@ type host struct {
 	previewCancel context.CancelFunc
 	previewIndex  int
 	previewGen    int
+	previewSlot   chan struct{}
+	playerSlot    chan struct{}
 	starting      *story.Story
+	startFocus    string
 	startTicket   ochazuke.Ticket
 	paneReturn    bool
 	embedded      bool
@@ -62,7 +65,7 @@ type startStory struct{ s *story.Story }
 var hostBindings []byte
 
 func newHost(lib story.Library, title string) (*host, error) {
-	h := &host{lib: lib, store: lib.Store, want: -1, wantP: -1, w: 80, h: 24, previews: map[int]storyPreview{}}
+	h := &host{lib: lib, store: lib.Store, want: -1, wantP: -1, w: 80, h: 24, previews: map[int]storyPreview{}, previewSlot: make(chan struct{}, 1), playerSlot: make(chan struct{}, 1)}
 	r := ochazuke.NewRuntime()
 	h.idx = ochazuke.NewModel(r)
 	h.idx.Title = title
@@ -347,6 +350,9 @@ func (h *host) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	_, cmd := h.idx.Update(msg)
+	if h.starting != nil && h.idx.Runtime.Focus != h.startFocus && h.idx.Runtime.Settings().Bool("play.follow-focus") {
+		h.cancelStart()
+	}
 	if h.idx.Runtime.Quit {
 		return h, tea.Quit
 	}

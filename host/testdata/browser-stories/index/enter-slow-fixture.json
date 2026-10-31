@@ -23,7 +23,7 @@
     {
       "after": 2,
       "focus": "s46",
-      "contains": [
+      "lacks": [
         "Starting…"
       ]
     },

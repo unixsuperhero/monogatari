@@ -1,0 +1,83 @@
+{
+  "name": "scrolloff-default",
+  "area": "index",
+  "width": 120,
+  "height": 40,
+  "fixture": "review",
+  "seed": {
+    "focus": "many/m00"
+  },
+  "script": [
+    "G",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k",
+    "k"
+  ],
+  "expect": [
+    {
+      "after": 12,
+      "focus": "s32",
+      "visible": true,
+      "contains": [
+        "many story 26",
+        "many story 28",
+        "many story 30"
+      ]
+    },
+    {
+      "after": 28,
+      "focus": "s16",
+      "visible": true,
+      "contains": [
+        "many story 10",
+        "many story 12",
+        "many story 14"
+      ]
+    },
+    {
+      "focus": "s4",
+      "visible": true,
+      "contains": [
+        "MANY",
+        "many story 00",
+        "many story 02"
+      ]
+    }
+  ]
+}

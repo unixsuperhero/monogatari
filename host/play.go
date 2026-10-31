@@ -671,13 +671,13 @@ func (h *host) openPlay(s *story.Story) tea.Cmd {
 		h.previewBusy = false
 	}
 	here, focus := h.wantHere, r.Focus
-	h.starting = s
+	h.starting, h.startFocus = s, focus
 	if !r.Settings().Bool("index.preview") && r.Settings().Bool("play.start-indicator") {
 		h.idx.Info = "Starting…"
 	}
-	lib, wait := h.lib, r.Settings().Duration("story.build-timeout")
+	lib, wait, slot := h.lib, r.Settings().Duration("story.build-timeout"), h.playerSlot
 	res := ochazuke.Pending(func(ctx context.Context) (any, error) {
-		p, err := buildPlayer(ctx, lib, s, wait)
+		p, err := buildPlayerInSlot(ctx, lib, s, wait, slot)
 		return playerBuilt{p}, err
 	}).ReplacingAt("index", "player").Label("Build story").Then(func(_ ochazuke.Ctx, value any, err error) {
 		h.starting = nil

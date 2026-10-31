@@ -16,8 +16,22 @@ import (
 )
 
 func declareIndexSettings(r *ochazuke.Runtime) error {
+	// v0.54 keeps this default on Page. Leave a later framework declaration
+	// in charge when it exposes the same setting itself.
+	if _, declared := r.Settings().Value("scrolloff"); !declared {
+		if err := r.DeclareSetting(ochazuke.Setting{Name: "scrolloff", Type: ochazuke.SettingInteger, Default: 2, Description: "Rows kept above and below the focus", Validate: func(v any) error {
+			if v.(int) < 0 {
+				return fmt.Errorf("must be nonnegative")
+			}
+			return nil
+		}}); err != nil {
+			return err
+		}
+	}
 	for _, setting := range []ochazuke.Setting{
 		{Name: "index.preview", Type: ochazuke.SettingBoolean, Default: true, Description: "Split the story index with a cached first frame and script; off restores the single list and enter opens live"},
+		{Name: "index.playing-row", Type: ochazuke.SettingBoolean, Default: true, Description: "Keep the pane player's story row in view and mark it with an arrow"},
+		{Name: "play.follow-focus", Type: ochazuke.SettingBoolean, Default: true, Description: "Cancel player startup when focus moves away from its story"},
 		{Name: "story.build-timeout", Type: ochazuke.SettingDuration, Default: "5s", Description: "Maximum wait for a story fixture to start or preview", Validate: func(v any) error {
 			if v.(time.Duration) <= 0 {
 				return fmt.Errorf("must be positive")
@@ -82,10 +96,10 @@ func (h *host) previewCommand() tea.Cmd {
 	ctx, cancel := context.WithCancel(context.Background())
 	h.previewCancel, h.previewBusy, h.previewIndex = cancel, true, i
 	h.previewGen++
-	gen, lib, st := h.previewGen, h.lib, h.lib.Stories[i]
+	gen, lib, st, slot := h.previewGen, h.lib, h.lib.Stories[i], h.previewSlot
 	wait := h.idx.Runtime.Settings().Duration("story.build-timeout")
 	return func() tea.Msg {
-		p, err := buildPlayer(ctx, lib, st, wait)
+		p, err := buildPlayerInSlot(ctx, lib, st, wait, slot)
 		pv := storyPreview{err: err}
 		if err == nil {
 			pv.frame = p.d.S.Frame()
@@ -152,6 +166,12 @@ func (h *host) renderStoryList(r *ochazuke.Runtime, w, ht int, window bool) stri
 		sections = append(sections, section{"area-" + a, start, len(lines), focus})
 		if l.Focused() {
 			focused = focus
+		}
+		if h.embedded && h.play != nil && r.Settings().Bool("index.playing-row") && l.FocusTarget() == h.returnFocus {
+			focused = focus
+			if focus < len(lines) {
+				lines[focus] = styles.Muted.Render("▶ ") + strings.TrimPrefix(lines[focus], strings.Repeat(" ", areaIndent))
+			}
 		}
 	}
 	top, bottom := 0, len(lines)

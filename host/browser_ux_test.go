@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -186,6 +187,9 @@ func TestBrowserUXEnterSlowFixture(t *testing.T) {
 	if h.focusedStory() != 1 {
 		t.Fatal("motion did not work during startup")
 	}
+	if h.starting != nil || h.idx.Runtime.Accepts(h.startTicket) {
+		t.Fatal("motion did not cancel startup")
+	}
 	keytest.Press(h, "esc")
 	if h.starting != nil || strings.Contains(screen(h), "Starting…") {
 		t.Fatal("escape did not cancel startup")
@@ -274,16 +278,16 @@ func TestBrowserUXPreviewTimeoutAndLateCleanup(t *testing.T) {
 		t.Fatal("timeout did not leave a usable preview slot")
 	}
 	h.idx.Runtime.Settings().Set("story.build-timeout", "5s")
-	runBrowserCommand(t, h, keytest.Press(h, "j"))
-	if h.previews[1].player == nil {
-		close(release)
-		t.Fatal("timed out build blocked the next story")
-	}
+	next := keytest.Press(h, "j")
 	close(release)
 	select {
 	case <-closed:
 	case <-time.After(time.Second):
 		t.Fatal("late session was not closed")
+	}
+	runBrowserCommand(t, h, next)
+	if h.previews[1].player == nil {
+		t.Fatal("queued preview did not build after late cleanup")
 	}
 }
 
@@ -458,5 +462,159 @@ func TestBrowserUXPaneGutter(t *testing.T) {
 	h := browserHost(t)
 	if !strings.Contains(screen(h), "│ First story") {
 		t.Fatal("no divider between area count and preview title")
+	}
+}
+
+func TestBrowserUXScrolloffDefault(t *testing.T) {
+	for _, size := range [][2]int{{120, 40}, {80, 24}} {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			h, err := newHost(reviewLibrary(t), "review")
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(h.close)
+			h.Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
+			for _, row := range []int{30, 12, 4} {
+				h.idx.Runtime.SetFocus(fmt.Sprint("s", row))
+				view := strings.Split(ansi.Strip(h.renderStoryList(h.idx.Runtime, 30, size[1]-6, true)), "\n")
+				at := -1
+				for i, line := range view {
+					if strings.Contains(line, h.lib.Stories[row].Name) {
+						at = i
+					}
+				}
+				if at < 2 || at >= len(view)-2 {
+					t.Fatalf("row %d at line %d without two-row margin:\n%s", row, at, strings.Join(view, "\n"))
+				}
+			}
+			if view := ansi.Strip(h.renderStoryList(h.idx.Runtime, 30, size[1]-6, true)); !strings.Contains(view, "MANY") {
+				t.Fatal("first row hid its area heading", view)
+			}
+			t.Logf("FRAME scrolloff-%dx%d %q", size[0], size[1], screen(h))
+			if err := h.idx.Runtime.Settings().Set("scrolloff", 0); err != nil {
+				t.Fatal(err)
+			}
+			h.indexTop = 100
+			if view := ansi.Strip(h.renderStoryList(h.idx.Runtime, 30, size[1]-6, true)); !strings.HasPrefix(strings.TrimSpace(view), "many story 00") {
+				t.Fatal("scrolloff=0 did not opt out", view)
+			}
+		})
+	}
+}
+
+func TestBrowserUXExistingScrolloffDeclaration(t *testing.T) {
+	r := ochazuke.NewRuntime()
+	r.Config().Disable()
+	if err := r.DeclareSetting(ochazuke.Setting{Name: "scrolloff", Type: ochazuke.SettingInteger, Default: 4}); err != nil {
+		t.Fatal(err)
+	}
+	if err := declareIndexSettings(r); err != nil || r.Settings().Int("scrolloff") != 4 {
+		t.Fatal("host replaced an existing framework declaration", err)
+	}
+}
+
+func TestBrowserUXBuildSlotsBoundAbandonedFixtures(t *testing.T) {
+	for _, kind := range []string{"preview", "player"} {
+		t.Run(kind, func(t *testing.T) {
+			h := browserHost(t)
+			slot := h.previewSlot
+			if kind == "player" {
+				slot = h.playerSlot
+			}
+			started, release, closed := make(chan struct{}), make(chan struct{}), make(chan struct{})
+			var builds atomic.Int32
+			h.lib.Apps[0].Fixtures[1].Build = func(env story.Env) (story.Built, error) {
+				first := builds.Add(1) == 1
+				if first {
+					close(started)
+					<-release
+				}
+				built, err := buildRows(env)
+				if first {
+					built.Close = func() { close(closed) }
+				}
+				return built, err
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			result := make(chan error, 1)
+			go func() { _, err := buildPlayerInSlot(ctx, h.lib, h.lib.Stories[0], time.Second, slot); result <- err }()
+			select {
+			case <-started:
+			case <-time.After(time.Second):
+				close(release)
+				t.Fatal("slow fixture did not start")
+			}
+			cancel()
+			if err := <-result; err != context.Canceled {
+				close(release)
+				t.Fatal("abandoning fixture did not return promptly", err)
+			}
+			// Each newer request times out in the queue without starting a
+			// fixture. Cancelling queued motion cannot pile up abandoned builds.
+			for range 4 {
+				p, err := buildPlayerInSlot(context.Background(), h.lib, h.lib.Stories[1], 10*time.Millisecond, slot)
+				if p != nil {
+					p.Close()
+				}
+				if err == nil || builds.Load() != 1 {
+					close(release)
+					t.Fatal("queued request started another fixture", builds.Load(), err)
+				}
+			}
+			close(release)
+			select {
+			case <-closed:
+			case <-time.After(time.Second):
+				t.Fatal("abandoned fixture did not close")
+			}
+			p, err := buildPlayerInSlot(context.Background(), h.lib, h.lib.Stories[1], time.Second, slot)
+			if err != nil {
+				t.Fatal("latest request did not resume", err)
+			}
+			p.Close()
+			if builds.Load() != 2 {
+				t.Fatal("unexpected fixture count", builds.Load())
+			}
+		})
+	}
+}
+
+func TestBrowserUXFollowFocusOptOut(t *testing.T) {
+	h := browserHost(t)
+	if err := h.idx.Runtime.Settings().Set("play.follow-focus", false); err != nil {
+		t.Fatal(err)
+	}
+	cmd := keytest.Press(h, "enter")
+	keytest.Press(h, "j")
+	if h.starting == nil || !h.idx.Runtime.Accepts(h.startTicket) {
+		t.Fatal("follow-focus opt-out cancelled startup")
+	}
+	settlePlayerCommand(t, h, cmd)
+	if h.play == nil || h.returnFocus != "s0" {
+		t.Fatal("original startup was not kept")
+	}
+	h.idx.Runtime.Settings().Set("index.playing-row", false)
+	if strings.Contains(ansi.Strip(h.renderStoryList(h.idx.Runtime, 40, 20, true)), "▶ ") {
+		t.Fatal("playing-row opt-out kept its marker")
+	}
+}
+
+func TestBrowserUXPlayingRowResize(t *testing.T) {
+	h, err := newHost(reviewLibrary(t), "review")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(h.close)
+	h.idx.Runtime.SetFocus("s43")
+	h.wantHere = true
+	settlePlayerCommand(t, h, h.openPlay(h.lib.Stories[43]))
+	for _, size := range [][2]int{{120, 40}, {80, 24}, {120, 40}} {
+		h.Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
+		view := screen(h)
+		if !strings.Contains(view, "▶ many story 39") || h.idx.Runtime.Focus != "index-player" {
+			t.Fatal("resize hid the playing row or moved player focus", view)
+		}
+		t.Logf("FRAME playing-%dx%d %q", size[0], size[1], view)
 	}
 }
