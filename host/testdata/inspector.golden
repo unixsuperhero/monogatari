@@ -1,0 +1,24 @@
+  ◆ rows-story                                                                                 NORMAL         
+   Stories  › Play                                                                                            
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────  
+  step 1/1  end                                         ┌ ▶ tutorials/copy-a-json-path ────────────────────┐  
+                                                        │paths                                             │  
+    ◆ reset point                                       │.items[3].owner.id                                │  
+    ▾ Copy path                                         │                                                  │  
+      Press y. The state strip below the preview shows  │                                                  │  
+      the resulting register value.                     │                                                  │  
+  ▸   └ y                                               │                                                  │  
+                                                        │                                                  │  
+                                                        │                                                  │  
+                                                        └──────────────────────────────────────────── 50x8 ┘  
+                                                        Δ register " = ".items[3].owner.id" · Δ register 0 =  
+                                                        ".items[3].owner.id" · Δ info: "copied path" · Δ      
+                                                        row.copy → ".items[3].owner.id"…                      
+                                                                                                              
+                                                                                                              
+                                                                                                              
+                                                                                                              
+                                                                                                              
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────  
+  i play.record · s play.save · space play.step · h play.back · a play.auto · f play.end · r play.restart ·…  
+                                                                                                              

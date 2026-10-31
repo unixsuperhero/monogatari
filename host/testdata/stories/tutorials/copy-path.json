@@ -1,0 +1,10 @@
+{
+  "name": "Copy a JSON path",
+  "area": "tutorials",
+  "width": 50,
+  "height": 8,
+  "chrome": "none",
+  "seed": {"lists": [{"id": "paths", "rows": 1}], "labels": {"paths1": ".items[3].owner.id"}},
+  "setup": [],
+  "actions": [{"label": "Copy path", "caption": "Press y. The state strip below the preview shows the resulting register value.", "keys": ["y"], "expect": {"register": ".items[3].owner.id"}}]
+}
