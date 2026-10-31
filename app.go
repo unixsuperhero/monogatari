@@ -187,6 +187,10 @@ func build(apps []App, s *Story, opt Options, stateDir string) (ss *Session, err
 	keep := stateDir != ""
 	made := ss // a failing return sets ss to nil before this runs
 	defer func() {
+		if recovered := recover(); recovered != nil {
+			made.close(keep)
+			panic(recovered) // the caller decides how to present a broken fixture
+		}
 		if err != nil {
 			made.close(keep)
 		}

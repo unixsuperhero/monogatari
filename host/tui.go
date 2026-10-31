@@ -1,6 +1,8 @@
 package host
 
 import (
+	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"strings"
@@ -18,18 +20,33 @@ import (
 // the middle of the terminal. Every story session is recorded; leaving it
 // writes the recording into the history ring and asks for a name.
 type host struct {
-	lib   story.Library
-	store story.Store
-	idx   *ochazuke.Model
-	field *ochazuke.Input
-	want  int // index of the story the index asked to open, -1 none
-	wantP int // index of the story the index asked to play, -1 none
-	play  *player
+	lib           story.Library
+	store         story.Store
+	idx           *ochazuke.Model
+	field         *ochazuke.Input
+	want          int // index of the story the index asked to open, -1 none
+	wantP         int // index of the story the index asked to play, -1 none
+	play          *player
+	areas         []string
+	previews      map[int]storyPreview
+	previewBusy   bool
+	previewCancel context.CancelFunc
+	previewIndex  int
+	previewGen    int
+	previewSlot   chan struct{}
+	playerSlot    chan struct{}
+	starting      *story.Story
+	startFocus    string
+	startTicket   ochazuke.Ticket
+	paneReturn    bool
+	embedded      bool
+	returnFocus   string
+	indexTop      int
+	wantHere      bool
 	// playTick is a timer a play verb asked for (autoplay, a recording's
 	// poll); Update collects it after the verb ran.
 	playTick tea.Cmd
 	w, h     int
-	msg      string // the index's last message (saved as, kept in history)
 
 	cur      *story.Session
 	rec      *story.Recorder
@@ -44,11 +61,18 @@ type replayMsg struct{ gen, i int }
 type startReplay struct{ rec *story.Recording }
 type startStory struct{ s *story.Story }
 
+//go:embed bindings.json
+var hostBindings []byte
+
 func newHost(lib story.Library, title string) (*host, error) {
-	h := &host{lib: lib, store: lib.Store, want: -1, wantP: -1, w: 80, h: 24}
+	h := &host{lib: lib, store: lib.Store, want: -1, wantP: -1, w: 80, h: 24, previews: map[int]storyPreview{}, previewSlot: make(chan struct{}, 1), playerSlot: make(chan struct{}, 1)}
 	r := ochazuke.NewRuntime()
 	h.idx = ochazuke.NewModel(r)
 	h.idx.Title = title
+	if err := declareIndexSettings(r); err != nil {
+		return nil, err
+	}
+	r.DefineGuard("index-preview", func(r *ochazuke.Runtime, _ ochazuke.KeyEvent) bool { return r.Settings().Bool("index.preview") })
 	r.Define("entry").Columns(withoutArea(storyColumns)...).
 		Verb("open", func(c ochazuke.Ctx) ochazuke.Result {
 			i, ok := c.Instance.Data.(int)
@@ -65,11 +89,15 @@ func newHost(lib story.Library, title string) (*host, error) {
 			}
 			h.wantP = i
 			return ochazuke.Done(nil)
-		}, "Play the story's script step by step beside its frame; i records from any step").
-		Mode("normal").
-		Bind("enter", ochazuke.Do("entry.open")).
-		Bind("p", ochazuke.Do("entry.play")).
-		Bind("q", ochazuke.Do("app.quit"))
+		}, "Autoplay the story beside its frame; space pauses and i records from any step").Quiet().
+		Verb("play-here", func(c ochazuke.Ctx) ochazuke.Result {
+			i, ok := c.Instance.Data.(int)
+			if !ok {
+				return ochazuke.Failed(errors.New("not a story row"))
+			}
+			h.wantP, h.wantHere = i, true
+			return ochazuke.Done(nil)
+		}, "Autoplay the focused story in the preview pane; space pauses and q returns to the list")
 	h.field = ochazuke.NewInput("save-name", "", false)
 	r.Define("field").Pin("insert").
 		Verb("commit", func(r *ochazuke.Runtime, _ ochazuke.Context, _ ochazuke.Arguments) (any, error) {
@@ -83,15 +111,14 @@ func newHost(lib story.Library, title string) (*host, error) {
 		Verb("cancel", func(r *ochazuke.Runtime, _ ochazuke.Context, _ ochazuke.Arguments) (any, error) {
 			h.saveAs("")
 			return nil, r.Pop()
-		}, "Keep the recording in the history ring only").
-		Mode("insert").
-		Bind("enter", ochazuke.Do("field.commit")).
-		Bind("esc", ochazuke.Do("field.cancel"))
+		}, "Keep the recording in the history ring only")
 	h.idx.ModalViews["save"] = ochazuke.ModalView{Title: "Recording", Render: func(_ *ochazuke.Runtime, body *ochazuke.Instance, w, _ int) ochazuke.Block {
 		label := body.Payload.Prompt + " "
 		field := ochazuke.InputBlock(h.field, max(1, w-len(label)), 1)
 		return field.Offset(len(label), 0).WithText(label + field.Text)
 	}}
+	r.DefineGuard("play-starting", func(*ochazuke.Runtime, ochazuke.KeyEvent) bool { return h.starting != nil })
+	r.Define("index").Verb("cancel-start", func(c ochazuke.Ctx) ochazuke.Result { h.cancelStart(); return ochazuke.Done(nil) }, "Cancel starting the story")
 	r.Instance("index", ochazuke.Kind("index"))
 	var areas []string
 	byArea := map[string][]ochazuke.ListItem{}
@@ -106,29 +133,18 @@ func newHost(lib story.Library, title string) (*host, error) {
 			return nil, err
 		}
 	}
-	render := func(r *ochazuke.Runtime, w, _ int) ochazuke.Block {
-		s := ochazuke.NewStyles(*h.idx.Appearance)
-		var parts []string
-		if h.msg != "" {
-			parts = append(parts, s.Subtitle.Render(ansi.Truncate(h.msg, w, "…")), "")
-		}
-		for i, a := range areas {
-			if i > 0 {
-				parts = append(parts, "")
-			}
-			l := r.List("area-" + a)
-			parts = append(parts, areaHeading(s, a, l.Len(), w), indent(l.View(max(1, w-areaIndent), l.Height()+1), areaIndent))
-		}
-		return ochazuke.Text(strings.Join(parts, "\n"))
-	}
+	h.areas = areas
 	var opts []ochazuke.InstanceOption
 	if len(lib.Stories) > 0 {
 		opts = append(opts, ochazuke.Focus("s0"))
 	}
-	if _, err := r.AddPage("index", "Stories", render, opts...); err != nil {
+	if _, err := r.AddPage("index", "Stories", h.renderIndex, opts...); err != nil {
 		return nil, err
 	}
 	if err := h.definePlay(r); err != nil {
+		return nil, err
+	}
+	if err := r.LoadDefaultBindings("monogatari/host/bindings.json", hostBindings); err != nil {
 		return nil, err
 	}
 	if err := r.OpenPage("index"); err != nil {
@@ -140,22 +156,27 @@ func newHost(lib story.Library, title string) (*host, error) {
 	return h, nil
 }
 
-func (h *host) Init() tea.Cmd { return h.idx.Init() }
+func (h *host) Init() tea.Cmd { return tea.Batch(h.idx.Init(), h.previewCommand()) }
 
 // open starts a story (or a recording's story, replayed live).
 func (h *host) open(s *story.Story, replay *story.Recording) tea.Cmd {
 	if len(s.Actions) > 0 && replay == nil {
-		h.openPlay(s)
-		return nil
+		return h.openPlay(s)
+	}
+	h.cancelStart()
+	if h.previewCancel != nil {
+		h.previewCancel()
+		h.previewCancel = nil
+		h.previewBusy = false
 	}
 	resolved, prefix, err := h.lib.Resolve(s)
 	if err != nil {
-		h.msg = "open " + s.Name + ": " + err.Error()
+		h.idx.Status = "open " + s.Name + ": " + err.Error()
 		return nil
 	}
 	ss, err := h.lib.Build(resolved, story.Options{})
 	if err != nil {
-		h.msg = "open " + s.Name + ": " + err.Error()
+		h.idx.Status = "open " + s.Name + ": " + err.Error()
 		return nil
 	}
 	h.rec = story.NewRecorder(resolved, nil)
@@ -164,7 +185,7 @@ func (h *host) open(s *story.Story, replay *story.Recording) tea.Cmd {
 		// played headless, kept at the head of the recording.
 		d := story.NewDriver(ss, story.Options{})
 		if err := d.Play(prefix, nil); err != nil {
-			h.msg = "open " + s.Name + ": " + err.Error()
+			h.idx.Status = "open " + s.Name + ": " + err.Error()
 			ss.Close()
 			return nil
 		}
@@ -199,7 +220,7 @@ func (h *host) leave() tea.Cmd {
 	h.gen++
 	path, err := h.store.Push(&h.rec.Rec)
 	if err != nil {
-		h.msg = "recording not written: " + err.Error()
+		h.idx.Status = "recording not written: " + err.Error()
 		return nil
 	}
 	h.askName(path)
@@ -209,11 +230,11 @@ func (h *host) leave() tea.Cmd {
 // askName opens the save-as prompt for the recording just written to path.
 func (h *host) askName(path string) error {
 	h.last = path
-	h.msg = ""
+	h.idx.Status, h.idx.Info = "", ""
 	h.field.Text = nil
 	h.field.Cursor = 0
 	if _, err := h.idx.Runtime.OpenModal("save", ochazuke.Payload{Prompt: "save as:"}, ochazuke.WithInput(h.field, ochazuke.Kind("field"))); err != nil {
-		h.msg = "kept in history: " + path
+		h.idx.Info = "kept in history: " + path
 		return err
 	}
 	return nil
@@ -223,15 +244,15 @@ func (h *host) askName(path string) error {
 // leaves it in the ring when name is empty.
 func (h *host) saveAs(name string) {
 	if name == "" {
-		h.msg = "kept in history (last " + fmt.Sprint(story.HistorySize) + "): " + h.last
+		h.idx.Info = "kept in history (last " + fmt.Sprint(story.HistorySize) + "): " + h.last
 		return
 	}
 	dest, err := h.store.Move(h.last, name)
 	if err != nil {
-		h.msg = "not saved (" + err.Error() + "); kept in history: " + h.last
+		h.idx.Status = "not saved (" + err.Error() + "); kept in history: " + h.last
 		return
 	}
-	h.msg = "saved as " + dest
+	h.idx.Info = "saved as " + dest
 }
 
 // deliver hands one message to the open story, recording it when it is an
@@ -247,7 +268,7 @@ func (h *host) deliver(msg tea.Msg) tea.Cmd {
 	if h.cur.Reset {
 		ss, err := h.cur.Rebuild(false) // closes the old session (Close is idempotent)
 		if err != nil {
-			h.msg = err.Error()
+			h.idx.Status = err.Error()
 			return h.leave()
 		}
 		h.cur, h.gen = ss, h.gen+1
@@ -258,10 +279,30 @@ func (h *host) deliver(msg tea.Msg) tea.Cmd {
 
 func (h *host) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch v := msg.(type) {
+	case previewReady:
+		if v.gen != h.previewGen {
+			return h, nil
+		}
+		h.previewBusy = false
+		if !errors.Is(v.preview.err, context.Canceled) {
+			h.previews[v.index] = v.preview
+		}
+		if h.previewCancel != nil {
+			h.previewCancel()
+			h.previewCancel = nil
+		}
+		return h, h.previewCommand()
+	case ochazuke.Completion:
+		if built, ok := v.Value.(playerBuilt); ok && !h.idx.Runtime.Accepts(v.Ticket) {
+			if built.player != nil {
+				built.player.Close()
+			}
+			return h, nil
+		}
 	case tea.WindowSizeMsg:
 		h.w, h.h = v.Width, v.Height
 		_, cmd := h.idx.Update(v)
-		return h, cmd
+		return h, tea.Batch(cmd, h.previewCommand())
 	case story.Tagged:
 		if h.cur == nil || v.Gen != h.gen {
 			return h, nil
@@ -276,7 +317,7 @@ func (h *host) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case startReplay:
 		return h, h.open(v.rec.Initial, v.rec)
 	case startStory:
-		return h, h.open(v.s, nil)
+		return h, h.openPlay(v.s)
 	case outputMsg:
 		if h.cur == nil || v.gen != h.gen || h.replay != nil {
 			return h, nil
@@ -309,6 +350,9 @@ func (h *host) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	_, cmd := h.idx.Update(msg)
+	if h.starting != nil && h.idx.Runtime.Focus != h.startFocus && h.idx.Runtime.Settings().Bool("play.follow-focus") {
+		h.cancelStart()
+	}
 	if h.idx.Runtime.Quit {
 		return h, tea.Quit
 	}
@@ -320,12 +364,13 @@ func (h *host) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if h.wantP >= 0 {
 		s := h.lib.Stories[h.wantP]
 		h.wantP = -1
-		h.openPlay(s)
+		cmd = tea.Batch(cmd, h.openPlay(s))
+		h.wantHere = false
 	}
 	if h.playTick != nil {
 		cmd, h.playTick = tea.Batch(cmd, h.playTick), nil
 	}
-	return h, cmd
+	return h, tea.Batch(cmd, h.previewCommand())
 }
 
 // replayStep plays the next recorded event: keys, text and output lines
@@ -411,4 +456,20 @@ func indent(text string, n int) string {
 		lines[i] = pad + lines[i]
 	}
 	return strings.Join(lines, "\n")
+}
+
+// close releases only this host's sessions and cancels its background work.
+func (h *host) close() {
+	if h.previewCancel != nil {
+		h.previewCancel()
+		h.previewCancel = nil
+	}
+	h.previewGen++
+	h.cancelStart()
+	if h.play != nil {
+		h.play.Close()
+	}
+	if h.cur != nil {
+		h.cur.Close()
+	}
 }

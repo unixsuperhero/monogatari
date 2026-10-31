@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	story "github.com/unixsuperhero/monogatari"
 	"github.com/unixsuperhero/ochazuke"
@@ -33,11 +34,36 @@ func playHost(t *testing.T) (*host, story.Library) {
 			h.idx.Runtime.SetFocus("s" + itoa(i))
 		}
 	}
-	keytest.Press(h, "p")
+	cmd := settlePlayerCommand(t, h, keytest.Press(h, "p"))
 	if h.play == nil || h.idx.Runtime.Page != "play" {
-		t.Fatalf("p opened no player (page %q, msg %q)", h.idx.Runtime.Page, h.msg)
+		t.Fatalf("p opened no player (page %q, msg %q)", h.idx.Runtime.Page, h.idx.Status)
+	}
+	if !h.play.auto || nextPlayTick(t, cmd).gen != h.play.gen {
+		t.Fatal("p did not start the autoplay timer")
 	}
 	return h, lib
+}
+
+// Execute the returned command so startup tests cover scheduling as well as state.
+func nextPlayTick(t *testing.T, cmd tea.Cmd) playTick {
+	t.Helper()
+	if cmd == nil {
+		t.Fatal("no autoplay command")
+	}
+	switch msg := cmd().(type) {
+	case playTick:
+		return msg
+	case tea.BatchMsg:
+		for _, one := range msg {
+			if one != nil {
+				return nextPlayTick(t, one)
+			}
+		}
+	default:
+		t.Fatalf("autoplay command returned %T", msg)
+	}
+	t.Fatal("no autoplay tick in batch")
+	return playTick{}
 }
 
 func itoa(i int) string { return strconv.Itoa(i) }
@@ -54,12 +80,16 @@ func TestPlayStepsAndChecksTheScript(t *testing.T) {
 		t.Fatalf("fresh player at %d of %d", p.at, len(p.script()))
 	}
 	frame := screen(h)
-	for _, want := range []string{"step 0/2", "paused", "j", "end", "focus=b1, focus visible", "spill-j-at-the-last-row", "a1"} {
+	for _, want := range []string{"step 0/2", "auto", "j", "end", "focus=b1, focus visible", "spill-j-at-the-last-row", "a1"} {
 		if !strings.Contains(frame, want) {
 			t.Fatalf("play page lacks %q:\n%s", want, frame)
 		}
 	}
 	keytest.Press(h, "space")
+	if p.auto || p.at != 0 || !strings.Contains(screen(h), "paused") {
+		t.Fatal("space did not pause at the opening frame")
+	}
+	keytest.Press(h, "l")
 	if p.at != 1 || p.d.S.R.Focus != "a2" {
 		t.Fatalf("after one step at %d, focus %q", p.at, p.d.S.R.Focus)
 	}
@@ -82,7 +112,7 @@ func TestPlayStepsAndChecksTheScript(t *testing.T) {
 		t.Fatalf("back: at %d, focus %q", p.at, p.d.S.R.Focus)
 	}
 	keytest.Press(h, "r")
-	if p.at != 0 || p.d.S.R.Focus != "a1" {
+	if p.at != 0 || p.auto || p.d.S.R.Focus != "a1" {
 		t.Fatalf("restart: at %d, focus %q", p.at, p.d.S.R.Focus)
 	}
 	keytest.Press(h, "f")
@@ -99,12 +129,21 @@ func TestPlayAutoAdvancesOnTicks(t *testing.T) {
 	h, _ := playHost(t)
 	p := h.play
 	keytest.Press(h, "+")
-	keytest.Press(h, "a")
 	if !p.auto {
-		t.Fatal("a did not start autoplay")
+		t.Fatal("player did not start autoplay")
 	}
 	if !strings.Contains(screen(h), "auto") {
 		t.Fatalf("status lacks auto:\n%s", screen(h))
+	}
+	stale := p.gen
+	keytest.Press(h, "space")
+	h.Update(playTick{gen: stale})
+	if p.auto || p.at != 0 {
+		t.Fatal("paused player advanced")
+	}
+	keytest.Press(h, "space")
+	if !p.auto {
+		t.Fatal("space did not resume autoplay")
 	}
 	h.Update(playTick{gen: p.gen})
 	if p.at != 1 {
@@ -120,10 +159,24 @@ func TestPlayAutoAdvancesOnTicks(t *testing.T) {
 	}
 }
 
+func TestPlayNewPlayerIgnoresPreviousTimer(t *testing.T) {
+	h, _ := playHost(t)
+	t.Cleanup(func() { h.play.Close() })
+	keytest.Press(h, "space")
+	keytest.Press(h, "space")
+	old := playTick{h.play.gen}
+	keytest.Press(h, "q")
+	settlePlayerCommand(t, h, keytest.Press(h, "p"))
+	h.Update(old)
+	if h.play.at != 0 || !h.play.auto {
+		t.Fatal("previous player's timer advanced the new player")
+	}
+}
+
 func TestPlayRecordsLiveKeysFromAStep(t *testing.T) {
 	h, lib := playHost(t)
 	p := h.play
-	keytest.Press(h, "space")
+	keytest.Press(h, "l")
 	keytest.Press(h, "i")
 	if !p.recording || p.at != 1 || len(p.script()) != 1 {
 		t.Fatalf("i did not start recording from step 1 (recording %v, at %d, script %d)", p.recording, p.at, len(p.script()))
@@ -157,13 +210,13 @@ func TestPlayRecordsLiveKeysFromAStep(t *testing.T) {
 	}
 	keytest.Press(h, "s")
 	if h.idx.Runtime.TopModal() == "" {
-		t.Fatalf("s opened no save prompt (msg %q)", h.msg)
+		t.Fatalf("s opened no save prompt (msg %q)", h.idx.Status)
 	}
 	keytest.Type(h, "walk")
 	keytest.Press(h, "enter")
 	e, err := lib.Store.Load("walk")
 	if err != nil {
-		t.Fatal(err, h.msg)
+		t.Fatal(err, h.idx.Status)
 	}
 	if len(e.Rec.Events) != 2 || e.Rec.Events[0].Key != "j" || e.Rec.Events[1].Key != "j" {
 		t.Fatalf("saved events %+v", e.Rec.Events)
@@ -181,12 +234,15 @@ func TestPlayTutorialResetsNavigatesAndShowsCaptions(t *testing.T) {
 		}
 	})
 	s := story.Find(lib.Stories, "tutorials/independent-motions")
-	h.Update(startStory{s}) // story open uses the player for tutorials
+	_, start := h.Update(startStory{s}) // story open uses the player for tutorials
+	settlePlayerCommand(t, h, start)
 	p := h.play
 	if p.action != -1 || !strings.Contains(screen(h), "reset point") {
 		t.Fatal("setup not shown")
 	}
-	keytest.Press(h, "a")
+	if !p.auto {
+		t.Fatal("tutorial did not start autoplay")
+	}
 	h.Update(playTick{p.gen}) // setup j
 	if p.d.S.R.Focus != "a2" {
 		t.Fatal(p.d.S.R.Focus)
@@ -208,11 +264,11 @@ func TestPlayTutorialResetsNavigatesAndShowsCaptions(t *testing.T) {
 		t.Fatal("second action failed")
 	}
 	keytest.Press(h, "[")
-	if p.action != 0 || p.at != 0 || p.d.S.R.Focus != "a2" {
+	if p.action != 0 || p.auto || p.at != 0 || p.d.S.R.Focus != "a2" {
 		t.Fatal("previous action did not reset")
 	}
 	keytest.Press(h, "]")
-	if p.action != 1 || p.at != 0 || p.d.S.R.Focus != "a2" {
+	if p.action != 1 || p.auto || p.at != 0 || p.d.S.R.Focus != "a2" {
 		t.Fatal("next action did not reset")
 	}
 	if _, err := h.idx.Runtime.Settings().SetSession("play.captions", false); err != nil {
@@ -284,7 +340,8 @@ func TestPlayTutorialStopsOnBadResetPoint(t *testing.T) {
 func TestPlayTutorialTreeKeepsSetupParentsAndResetCursor(t *testing.T) {
 	h, lib := playHost(t)
 	t.Cleanup(func() { h.play.Close() })
-	h.Update(startStory{story.Find(lib.Stories, "tutorials/tree-resets")})
+	_, starting := h.Update(startStory{story.Find(lib.Stories, "tutorials/tree-resets")})
+	settlePlayerCommand(t, h, starting)
 	p := h.play
 	rows, cur := p.tutorialRows()
 	if cur != -1 || rows[0].Event != "j" || rows[1].Event != "j" || !rows[2].Reset {
@@ -302,7 +359,6 @@ func TestPlayTutorialTreeKeepsSetupParentsAndResetCursor(t *testing.T) {
 	if strings.Join(parents, ",") != "Move up twice,Move down twice" {
 		t.Fatal(parents)
 	}
-	keytest.Press(h, "a")
 	for range 2 {
 		h.Update(playTick{p.gen})
 	}
@@ -323,7 +379,7 @@ func TestPlayTutorialTreeKeepsSetupParentsAndResetCursor(t *testing.T) {
 	if _, cur = p.tutorialRows(); cur != 2 || p.action != 1 || p.d.S.R.Focus != "a3" {
 		t.Fatal("second action did not jump back to the same reset row")
 	}
-	keytest.Press(h, "space")
+	keytest.Press(h, "l")
 	if _, cur = p.tutorialRows(); cur != 7 || p.d.S.R.Focus != "a4" {
 		t.Fatalf("second action did not walk its children: cursor %d", cur)
 	}
@@ -367,7 +423,8 @@ func TestPlayTutorialTreeKeepsParentVisibleForLongActions(t *testing.T) {
 		s.Actions[0].Keys[i] = story.Event{Key: "j"}
 	}
 	s.Actions[0].Expect = nil
-	h.Update(startStory{&s})
+	_, starting := h.Update(startStory{&s})
+	settlePlayerCommand(t, h, starting)
 	p := h.play
 	if err := p.chooseAction(0); err != nil {
 		t.Fatal(err)

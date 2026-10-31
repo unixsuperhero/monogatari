@@ -1,0 +1,1 @@
+{"name": "A story whose fixture does not exist", "area": "broken", "fixture": "nope", "width": 40, "height": 8, "script": ["j"], "expect": {"focus": "a1"}}

@@ -1,0 +1,19 @@
+{
+  "name": "preview-broken-fixture",
+  "area": "index",
+  "width": 120,
+  "height": 40,
+  "fixture": "review",
+  "seed": {
+    "focus": "broken/bad-fixture"
+  },
+  "expect": {
+    "contains": [
+      "fixture: nope",
+      "app: rows",
+      "step 0/1",
+      "Preview unavailable:",
+      "nope"
+    ]
+  }
+}

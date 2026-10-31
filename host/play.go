@@ -1,9 +1,11 @@
 package host
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
+	"slices"
 	"strings"
 	"time"
 
@@ -91,8 +93,11 @@ func newPlayer(lib story.Library, s *story.Story) (*player, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := &player{lib: lib, story: resolved, prefix: prefix, speed: playDefault, action: -1}
+	owned := *resolved
+	owned.Script = slices.Clone(resolved.Script)
+	p := &player{lib: lib, story: &owned, prefix: prefix, speed: playDefault, action: -1}
 	if err := p.rebuild(0); err != nil {
+		p.Close()
 		return nil, err
 	}
 	return p, nil
@@ -490,7 +495,15 @@ func (p *player) tutorialRows() ([]playRow, int) {
 	}
 	for i, a := range p.story.Actions {
 		parent := len(rows)
-		rows = append(rows, playRow{Event: a.Label, Detail: a.Caption, Parent: true})
+		parentRow := playRow{Event: a.Label, Detail: a.Caption, Parent: true}
+		var final story.Expects
+		for _, e := range a.Expect {
+			if e.After == 0 {
+				final = append(final, e)
+			}
+		}
+		parentRow.Assert = summarize(final)
+		rows = append(rows, parentRow)
 		children := steps(a.Keys, a.Expect)
 		if i == p.action {
 			children = p.rows()
@@ -643,54 +656,124 @@ func (h *host) definePlay(r *ochazuke.Runtime) error {
 			return nil
 		}), "Record from here: keys go to the story and fill the script; ctrl+g stops").
 		Verb("save", iv(func() error { return h.savePlay() }), "Write the script so far as a recording and ask for a name").
-		Verb("leave", iv(func() error { return h.leavePlay() }), "Back to the index").
-		Mode("normal").
-		Bind("i", ochazuke.Do("play.record")).
-		Bind("s", ochazuke.Do("play.save")).
-		Bind("space", ochazuke.Do("play.step")).
-		Bind("l", ochazuke.Do("play.step")).
-		Bind("right", ochazuke.Do("play.step")).
-		Bind("h", ochazuke.Do("play.back")).
-		Bind("left", ochazuke.Do("play.back")).
-		Bind("a", ochazuke.Do("play.auto")).
-		Bind("f", ochazuke.Do("play.end")).
-		Bind("r", ochazuke.Do("play.restart")).
-		Bind("]", ochazuke.Do("play.next-action")).
-		Bind("[", ochazuke.Do("play.previous-action")).
-		Bind("+", ochazuke.Do("play.faster")).
-		Bind("=", ochazuke.Do("play.faster")).
-		Bind("-", ochazuke.Do("play.slower")).
-		Bind("q", ochazuke.Do("play.leave")).
-		Bind("esc", ochazuke.Do("play.leave"))
+		Verb("fullsize", iv(func() error {
+			if h.play == nil {
+				return errors.New("no story is playing")
+			}
+			if !h.embedded {
+				h.paneReturn = true
+				return h.returnToPane()
+			}
+			h.paneReturn = true
+			h.embedded = false
+			return r.OpenPage("play")
+		}), "Toggle full size, keeping the pane player's position").
+		Verb("leave", iv(func() error { return h.leavePlay() }), "Return to the enclosing pane or selected story")
+	r.Instance("index-player", ochazuke.Parent("index"), ochazuke.Kind("play"))
 	_, err := r.AddPage("play", "Play", h.renderPlay, ochazuke.Kind("play"))
 	return err
 }
 
-// openPlay builds the player for story s and shows the play page.
-func (h *host) openPlay(s *story.Story) {
-	p, err := newPlayer(h.lib, s)
+// openPlay starts a cancellable job. Fixture construction never runs on the
+// update loop; a Completion installs the owned session and starts its timer.
+func (h *host) openPlay(s *story.Story) tea.Cmd {
+	r := h.idx.Runtime
+	if h.previewCancel != nil {
+		h.previewCancel()
+		h.previewCancel = nil
+		h.previewBusy = false
+	}
+	here, focus := h.wantHere, r.Focus
+	h.starting, h.startFocus = s, focus
+	if !r.Settings().Bool("index.preview") && r.Settings().Bool("play.start-indicator") {
+		h.idx.Info = "Starting…"
+	}
+	lib, wait, slot := h.lib, r.Settings().Duration("story.build-timeout"), h.playerSlot
+	res := ochazuke.Pending(func(ctx context.Context) (any, error) {
+		p, err := buildPlayerInSlot(ctx, lib, s, wait, slot)
+		return playerBuilt{p}, err
+	}).ReplacingAt("index", "player").Label("Build story").Then(func(_ ochazuke.Ctx, value any, err error) {
+		h.starting = nil
+		if h.idx.Info == "Starting…" {
+			h.idx.Info = ""
+		}
+		if err != nil {
+			return
+		}
+		p := value.(playerBuilt).player
+		if h.play != nil {
+			h.gen = max(h.gen, h.play.gen)
+			h.play.Close()
+		}
+		if inst := r.Instances[focus]; inst != nil && inst.Noun == "entry" {
+			h.returnFocus = focus
+		}
+		h.play, h.embedded, h.paneReturn = p, here, here
+		h.gen++
+		p.gen = h.gen
+		page, target := "play", ""
+		if here {
+			page, target = "index", "index-player"
+		}
+		if err := r.OpenPage(page); err != nil {
+			p.Close()
+			h.play = nil
+			h.idx.Status = err.Error()
+			return
+		}
+		if target != "" {
+			r.SetFocus(target)
+		}
+		p.auto = !p.done()
+		if p.auto {
+			h.playTick = h.playTimer()
+		}
+	})
+	ticket, err := r.Launch("index", "entry.play", res, ochazuke.Ctx{Runtime: r})
 	if err != nil {
-		h.msg = "play " + s.Name + ": " + err.Error()
-		return
+		h.starting = nil
+		h.idx.Status = err.Error()
+		return nil
 	}
-	if h.play != nil {
-		h.play.Close()
+	h.startTicket = ticket
+	return r.PendingCommands()
+}
+
+func (h *host) cancelStart() {
+	h.idx.Runtime.Settle(h.startTicket, context.Canceled)
+	h.starting = nil
+	if h.idx.Info == "Starting…" {
+		h.idx.Info = ""
 	}
-	h.play = p
-	if err := h.idx.Runtime.OpenPage("play"); err != nil {
-		h.msg = "play " + s.Name + ": " + err.Error()
-		p.Close()
-		h.play = nil
+}
+
+func (h *host) returnToPane() error {
+	h.embedded = true
+	if err := h.idx.Runtime.OpenPage("index"); err != nil {
+		return err
 	}
+	return h.idx.Runtime.SetFocus("index-player")
 }
 
 // leavePlay closes the player and returns to the index.
 func (h *host) leavePlay() error {
+	if !h.embedded && h.paneReturn {
+		return h.returnToPane()
+	}
+	h.paneReturn = false
 	if h.play != nil {
+		h.gen = max(h.gen, h.play.gen)
 		h.play.Close()
 		h.play = nil
 	}
-	return h.idx.Runtime.OpenPage("index")
+	h.embedded = false
+	if err := h.idx.Runtime.OpenPage("index"); err != nil {
+		return err
+	}
+	if h.returnFocus != "" {
+		return h.idx.Runtime.SetFocus(h.returnFocus)
+	}
+	return nil
 }
 
 // savePlay writes the script so far into the history ring and asks for a
@@ -764,6 +847,9 @@ func (h *host) onPlayTick(t playTick) tea.Cmd {
 func (h *host) renderPlay(_ *ochazuke.Runtime, w, ht int) ochazuke.Block {
 	s := ochazuke.NewStyles(*h.idx.Appearance)
 	p := h.play
+	if h.starting != nil && h.idx.Runtime.Settings().Bool("play.start-indicator") {
+		return ochazuke.Text("Starting…")
+	}
 	if p == nil {
 		return ochazuke.Text(s.Muted.Render("no story is playing"))
 	}

@@ -1,0 +1,24 @@
+{
+  "name": "playing-row-visible",
+  "area": "index",
+  "width": 80,
+  "height": 24,
+  "fixture": "review",
+  "seed": {
+    "focus": "many/m00"
+  },
+  "script": [
+    "G",
+    "enter",
+    {
+      "job": "entry.play"
+    },
+    "space"
+  ],
+  "expect": {
+    "focus": "index-player",
+    "contains": [
+      "▶ many story 39"
+    ]
+  }
+}

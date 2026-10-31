@@ -1,0 +1,1 @@
+{"name": "many story 25", "area": "many", "seed": {"lists": [{"id": "a", "rows": 3}]}, "width": 40, "height": 8, "script": ["j", "j"], "expect": {"focus": "a2"}}

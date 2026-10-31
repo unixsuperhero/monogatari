@@ -1,0 +1,21 @@
+{
+  "name": "area-boundary-scroll",
+  "area": "index",
+  "width": 120,
+  "height": 40,
+  "fixture": "review",
+  "seed": {
+    "focus": "long/long"
+  },
+  "script": [
+    "j"
+  ],
+  "expect": {
+    "focus": "s4",
+    "visible": true,
+    "contains": [
+      "LONG",
+      "many story 00"
+    ]
+  }
+}

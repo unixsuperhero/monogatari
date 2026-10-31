@@ -1,0 +1,26 @@
+{
+  "name": "rapid-motion-slow-preview",
+  "area": "index",
+  "width": 120,
+  "height": 40,
+  "fixture": "review",
+  "seed": {
+    "focus": "slow/slow1",
+    "cold": true
+  },
+  "script": [
+    "j",
+    "j",
+    "j",
+    "j"
+  ],
+  "expect": {
+    "focus": "s49",
+    "visible": true,
+    "contains": [
+      "slow story 5",
+      "Loading preview…",
+      "step 0/1"
+    ]
+  }
+}

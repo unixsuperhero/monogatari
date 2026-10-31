@@ -131,7 +131,7 @@ func storyID(s *story.Story) string {
 }
 
 // storyFixture is the app and fixture a story builds (a trimmed story's
-// through its base): "" when they do not resolve (its run says why).
+// through its base). Unresolved names stay as written for error displays.
 func storyFixture(lib story.Library, s *story.Story) (app, fixture string) {
 	r := s
 	if s.Base != "" {
@@ -141,7 +141,19 @@ func storyFixture(lib story.Library, s *story.Story) (app, fixture string) {
 	}
 	a, f, err := story.Lookup(lib.Apps, r)
 	if err != nil {
-		return "", ""
+		app, fixture = r.App, r.Fixture
+		if app == "" && len(lib.Apps) > 0 {
+			app = lib.Apps[0].Name
+		}
+		if fixture == "" {
+			for _, a := range lib.Apps {
+				if a.Name == app && len(a.Fixtures) > 0 {
+					fixture = a.Fixtures[0].Name
+					break
+				}
+			}
+		}
+		return app, fixture
 	}
 	return a.Name, f.Name
 }
@@ -311,6 +323,10 @@ func sortedKeys[V any](m map[string]V) []string {
 // shell is the catalog's runtime and command line.
 func (t *Tool) shell() *ocli.Shell {
 	r := ochazuke.NewRuntime()
+	r.Config().Dir = t.configDir()
+	if err := declareIndexSettings(r); err != nil {
+		panic(err)
+	}
 	lists := map[string]*ochazuke.List{}
 	for _, noun := range catalogNouns {
 		var opts []ochazuke.InstanceOption

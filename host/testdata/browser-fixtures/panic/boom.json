@@ -1,0 +1,13 @@
+{
+  "name": "a fixture that panics",
+  "area": "panic",
+  "fixture": "boom",
+  "width": 40,
+  "height": 8,
+  "script": [
+    "j"
+  ],
+  "expect": {
+    "focus": "a1"
+  }
+}
