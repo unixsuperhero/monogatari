@@ -1,0 +1,27 @@
+{
+  "name": "preview-off-keeps-focus-visible",
+  "area": "index",
+  "width": 120,
+  "height": 40,
+  "fixture": "review",
+  "seed": {
+    "focus": "many/m39"
+  },
+  "script": [
+    ":",
+    {
+      "type": "set noindex.preview"
+    },
+    "enter"
+  ],
+  "expect": {
+    "focus": "s43",
+    "visible": true,
+    "contains": [
+      "many story 39"
+    ],
+    "lacks": [
+      "fixture:"
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "name": "fullsize-esc-returns-to-pane",
+  "area": "index",
+  "width": 120,
+  "height": 40,
+  "script": [
+    "enter",
+    {
+      "job": "entry.play"
+    },
+    "space",
+    "l",
+    "p",
+    "esc",
+    "p",
+    "p",
+    "esc",
+    "p",
+    {
+      "job": "entry.play"
+    },
+    "p"
+  ],
+  "expect": [
+    {
+      "after": 5,
+      "page": "play",
+      "contains": [
+        "step 1/1"
+      ]
+    },
+    {
+      "after": 6,
+      "page": "index",
+      "focus": "index-player",
+      "contains": [
+        "step 1/1"
+      ]
+    },
+    {
+      "after": 8,
+      "page": "index",
+      "focus": "index-player",
+      "contains": [
+        "step 1/1"
+      ]
+    },
+    {
+      "focus": "s0",
+      "contains": [
+        "First frame"
+      ],
+      "after": 9
+    },
+    {
+      "focus": "index-player",
+      "page": "index",
+      "contains": [
+        "step 0/1"
+      ]
+    }
+  ]
+}

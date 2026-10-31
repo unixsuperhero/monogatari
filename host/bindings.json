@@ -1,0 +1,38 @@
+{
+  "bindings": [
+    {"context": "entry/normal", "bindings": [
+      {"key": "enter", "action": "entry.play-here", "when": "index-preview"},
+      {"key": "enter", "action": "entry.open"},
+      {"key": "o", "action": "entry.open"},
+      {"key": "p", "action": "entry.play"},
+      {"key": "q", "action": "app.quit"}
+    ]},
+    {"context": "play/normal", "bindings": [
+      {"key": "p", "action": "play.fullsize", "when": "index-preview"},
+      {"key": "i", "action": "play.record"},
+      {"key": "s", "action": "play.save"},
+      {"key": "space", "action": "play.auto"},
+      {"key": "l", "action": "play.step"},
+      {"key": "right", "action": "play.step"},
+      {"key": "h", "action": "play.back"},
+      {"key": "left", "action": "play.back"},
+      {"key": "a", "action": "play.auto"},
+      {"key": "f", "action": "play.end"},
+      {"key": "r", "action": "play.restart"},
+      {"key": "]", "action": "play.next-action"},
+      {"key": "[", "action": "play.previous-action"},
+      {"key": "+", "action": "play.faster"},
+      {"key": "=", "action": "play.faster"},
+      {"key": "-", "action": "play.slower"},
+      {"key": "q", "action": "play.leave"},
+      {"key": "esc", "action": "play.leave"}
+    ]},
+    {"context": "field/insert", "bindings": [
+      {"key": "enter", "action": "field.commit"},
+      {"key": "esc", "action": "field.cancel"}
+    ]},
+    {"context": "index/normal", "bindings": [
+      {"key": "esc", "action": "index.cancel-start", "when": "play-starting"}
+    ]}
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "fixture-panic-preview",
+  "area": "index",
+  "width": 120,
+  "height": 40,
+  "fixture": "review",
+  "seed": {
+    "focus": "panic/boom"
+  },
+  "script": [],
+  "expect": {
+    "contains": [
+      "fixture exploded",
+      "step 0/1"
+    ]
+  }
+}

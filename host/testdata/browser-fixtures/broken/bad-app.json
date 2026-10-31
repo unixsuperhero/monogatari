@@ -1,0 +1,1 @@
+{"name": "A story naming a missing app", "area": "broken", "app": "ghost", "width": 40, "height": 8, "script": ["j"], "expect": {"focus": "a1"}}

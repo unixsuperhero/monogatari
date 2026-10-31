@@ -524,6 +524,7 @@ func (t *Tool) tui(first tea.Msg) error {
 	}
 	h.idx.Runtime.Config().App = t.cfg.name()
 	h.idx.Runtime.Config().Dir = t.configDir()
+	defer h.close()
 	p := tea.NewProgram(h)
 	if first != nil {
 		go p.Send(first)

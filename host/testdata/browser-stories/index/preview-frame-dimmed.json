@@ -1,0 +1,14 @@
+{
+  "name": "preview-frame-dimmed",
+  "area": "index",
+  "width": 120,
+  "height": 40,
+  "script": [],
+  "expect": {
+    "highlighted": 1,
+    "contains": [
+      "First frame",
+      "e1"
+    ]
+  }
+}

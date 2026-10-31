@@ -1,0 +1,34 @@
+{
+  "name": "enter-broken-story",
+  "area": "index",
+  "width": 120,
+  "height": 40,
+  "fixture": "review",
+  "seed": {
+    "focus": "broken/bad-fixture"
+  },
+  "script": [
+    "enter",
+    {
+      "job": "entry.play"
+    },
+    "j"
+  ],
+  "expect": [
+    {
+      "after": 2,
+      "page": "index",
+      "contains": [
+        "Error:",
+        "nope",
+        "BROKEN"
+      ]
+    },
+    {
+      "lacks": [
+        "Error:"
+      ],
+      "focus": "s2"
+    }
+  ]
+}

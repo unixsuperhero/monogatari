@@ -1,0 +1,1 @@
+{"name": "slow story 3", "area": "slow", "fixture": "slow", "seed": {"lists": [{"id": "s3", "rows": 4}]}, "width": 40, "height": 8, "script": ["j"], "expect": {"focus": "s32"}}

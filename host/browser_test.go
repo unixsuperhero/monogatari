@@ -31,11 +31,7 @@ func browserHost(t *testing.T) *host {
 	}
 	_, cmd := h.Update(tea.WindowSizeMsg{Width: 120, Height: 32})
 	runBrowserCommand(t, h, cmd)
-	t.Cleanup(func() {
-		if h.play != nil {
-			h.play.Close()
-		}
-	})
+	t.Cleanup(h.close)
 	return h
 }
 
@@ -58,7 +54,7 @@ func TestBrowserSplitDefaultAndFocus(t *testing.T) {
 func TestBrowserEnterAndReturn(t *testing.T) {
 	h := browserHost(t)
 	keytest.Press(h, "j")
-	cmd := keytest.Press(h, "enter")
+	cmd := settlePlayerCommand(t, h, keytest.Press(h, "enter"))
 	if h.play == nil || h.idx.Runtime.Page != "index" {
 		t.Fatalf("enter did not play in index: player=%v page=%s", h.play, h.idx.Runtime.Page)
 	}
@@ -90,11 +86,42 @@ func runBrowserCommand(t *testing.T, h *host, cmd tea.Cmd) {
 		for _, one := range msg {
 			runBrowserCommand(t, h, one)
 		}
+	case playTick, recordTick, story.Tagged:
+		// Autoplay is tested by explicitly delivering ticks, never by sleeping.
+		return
+	case ochazuke.Completion:
+		_, next := h.Update(msg)
+		runBrowserCommand(t, h, next)
 	case previewReady:
 		_, next := h.Update(msg)
 		runBrowserCommand(t, h, next)
 	default:
 		t.Fatalf("unexpected browser command message %T", msg)
+	}
+}
+
+// Complete finite build jobs without advancing a player's autoplay clock.
+func settlePlayerCommand(t *testing.T, h *host, cmd tea.Cmd) tea.Cmd {
+	t.Helper()
+	if cmd == nil {
+		return nil
+	}
+	switch msg := cmd().(type) {
+	case tea.BatchMsg:
+		var pending []tea.Cmd
+		for _, one := range msg {
+			pending = append(pending, settlePlayerCommand(t, h, one))
+		}
+		return tea.Batch(pending...)
+	case ochazuke.Completion:
+		_, next := h.Update(msg)
+		return next
+	case previewReady:
+		_, next := h.Update(msg)
+		runBrowserCommand(t, h, next)
+		return nil
+	default:
+		return func() tea.Msg { return msg }
 	}
 }
 
@@ -116,20 +143,13 @@ func TestBrowserPreviewCacheAndLatestFocus(t *testing.T) {
 	if first.d != nil || second.d != nil {
 		t.Fatal("preview retained a session")
 	}
-	// A command is pending while focus moves. The old result fills only its
-	// cache entry; the next command follows the latest focus, not an old queue.
+	// A stale command cannot replace or stall the latest focused snapshot.
 	h.previews = map[int]storyPreview{}
-	cmd := h.previewCommand()
-	keytest.Press(h, "j")
-	keytest.Press(h, "k")
-	keytest.Press(h, "j")
-	old := cmd().(previewReady)
-	_, next := h.Update(old)
-	if next == nil || h.focusedStory() != 1 || !strings.Contains(screen(h), "Loading preview") {
-		t.Fatal("stale build replaced current preview")
-	}
-	runBrowserCommand(t, h, next)
-	if h.previews[1].player == nil {
+	old := h.previewCommand()
+	latest := keytest.Press(h, "j")
+	runBrowserCommand(t, h, latest)
+	runBrowserCommand(t, h, old)
+	if h.previews[1].player == nil || h.previewBusy {
 		t.Fatal("latest focus never built")
 	}
 }
@@ -176,7 +196,7 @@ func TestBrowserOptOutAndFullSize(t *testing.T) {
 		t.Fatal(err)
 	}
 	keytest.Press(h, "j")
-	keytest.Press(h, "enter")
+	settlePlayerCommand(t, h, keytest.Press(h, "enter"))
 	p := h.play
 	keytest.Press(h, "l")
 	keytest.Press(h, "p")
@@ -184,10 +204,14 @@ func TestBrowserOptOutAndFullSize(t *testing.T) {
 		t.Fatal("zoom lost player position")
 	}
 	keytest.Press(h, "q")
+	if !h.embedded || h.play != p {
+		t.Fatal("full-size return lost pane")
+	}
+	keytest.Press(h, "q")
 	if h.play != nil || h.idx.Runtime.Focus != "s1" {
 		t.Fatal("full-size return lost selection")
 	}
-	cmd := keytest.Press(h, "p")
+	cmd := settlePlayerCommand(t, h, keytest.Press(h, "p"))
 	if h.play == nil || h.idx.Runtime.Page != "play" || !h.play.auto || cmd == nil {
 		t.Fatal("index full-size binding did not play")
 	}
@@ -239,16 +263,12 @@ func browserApp() story.App {
 			p.Close()
 			p.d = nil
 		}
-		return story.Built{Model: h.idx, Program: h, Close: func() {
-			if h.play != nil {
-				h.play.Close()
-			}
-		}}, nil
+		return story.Built{Model: h.idx, Program: h, Close: h.close}, nil
 	}}}}
 }
 
 func TestBrowserStories(t *testing.T) {
-	Test(t, Config{Name: "browser-story", Apps: []story.App{browserApp()}, Stories: os.DirFS(filepath.Join("testdata", "browser-stories"))})
+	Test(t, Config{Name: "browser-story", Apps: []story.App{reviewBrowserApp()}, Stories: os.DirFS(filepath.Join("testdata", "browser-stories"))})
 }
 
 func TestBrowserTutorialPreview(t *testing.T) {

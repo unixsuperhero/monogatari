@@ -238,14 +238,31 @@ and a preview on the right. Moving focus updates the title, area, fixture,
 terminal size, script (keys and assertions), and first frame. Tutorials use
 the player's reset point and action tree. First frames are built outside the
 update loop, cached for this index session, and clipped to the pane; a loading
-placeholder keeps motions responsive while a build runs.
+placeholder keeps motions responsive while a build runs. Moving away cancels
+stale preview requests immediately. Fixture panics and build timeouts appear as
+wrapped preview errors alongside the known script, app and fixture names; one
+failed or stuck fixture does not hold up the next preview. First frames use the
+unfocused tone (`dim-unfocused=0` disables dimming).
 
 `enter` plays the focused story in the right pane with autoplay running.
 `p` opens the full-size player with autoplay from the list, or enlarges the
-current player while keeping its step and playback state. `space` pauses or
-resumes; `l` or `right` steps. `o` opens a story live for recording, and `q`
-or `esc` returns from the player to the list on the same story.
-Hints come from binding rows, so user remaps appear in the footer and help.
+current player while keeping its step and playback state. In a player opened
+from the pane, `p` toggles full size; `q` or `esc` returns one level at a time:
+full size → pane at the same step → the selected story. A player opened directly
+full size returns to the selected story, or `p` brings it into the pane. The
+zoom binding is available while `index.preview` is on. `space` pauses or
+resumes; `l` or `right` steps. `o` opens a story live for recording.
+
+Player construction runs outside the update loop. The pane shows “Starting…”
+while keys remain available; `esc` cancels startup. `play.start-indicator`
+defaults to `true` and can hide that indicator. `story.build-timeout` defaults
+to `5s` and must be positive; it bounds preview and player startup waits. The
+fixture API has no cancellation context, so an abandoned fixture can keep
+running until it returns, when its session is closed. Startup errors and
+recording results use the full-width status line and clear on the next key.
+Hints come from the embedded `host/bindings.json` default rows, so user remaps
+appear in the footer and help. Enter falls through from the guarded in-pane
+binding to `entry.open` when the preview setting is off.
 The existing pane grow/shrink/reset bindings resize the split.
 
 `index.preview` defaults to `true`. Set it to `false` through the Settings
@@ -259,7 +276,9 @@ Compared with Vim (checked against Vim 9.1's help):
 |---|---|---|
 | `j` / `k`, `gg` / `G` | `j`, `k`, `gg`, `G` | Similar: existing ochazuke list motions, including area spills |
 | `/`, `ctrl+d` / `ctrl+u` | `/`, `CTRL-D`, `CTRL-U` | Similar: existing list filter and half-page motions |
-| `ctrl+w o` / `:only` | `CTRL-W_o`, `:only` | Similar intent: `p` uses the full-size player page; the list is retained for return, rather than closing windows |
+| `:set scrolloff=2` | `'scrolloff'` | Same margin: the index scrolls by screen rows across area boundaries, keeping two lines around focus by default |
+| `ctrl+w o` / `:only`, `ctrl+w p` | `CTRL-W_o`, `:only`, `CTRL-W_p` | Similar intent: `p` toggles full size while retaining the pane; `esc` returns one level with its step intact |
+| — | — | Fixture construction, cancellation and timeouts: n/a; these have no Vim counterpart |
 
 Each host keeps its own state, under its name (`Config.Name`, default the
 slug of `Prog`): user stories (trimmed, copied, hand-made) in

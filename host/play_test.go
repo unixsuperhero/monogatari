@@ -34,9 +34,9 @@ func playHost(t *testing.T) (*host, story.Library) {
 			h.idx.Runtime.SetFocus("s" + itoa(i))
 		}
 	}
-	cmd := keytest.Press(h, "p")
+	cmd := settlePlayerCommand(t, h, keytest.Press(h, "p"))
 	if h.play == nil || h.idx.Runtime.Page != "play" {
-		t.Fatalf("p opened no player (page %q, msg %q)", h.idx.Runtime.Page, h.msg)
+		t.Fatalf("p opened no player (page %q, msg %q)", h.idx.Runtime.Page, h.idx.Status)
 	}
 	if !h.play.auto || nextPlayTick(t, cmd).gen != h.play.gen {
 		t.Fatal("p did not start the autoplay timer")
@@ -166,7 +166,7 @@ func TestPlayNewPlayerIgnoresPreviousTimer(t *testing.T) {
 	keytest.Press(h, "space")
 	old := playTick{h.play.gen}
 	keytest.Press(h, "q")
-	keytest.Press(h, "p")
+	settlePlayerCommand(t, h, keytest.Press(h, "p"))
 	h.Update(old)
 	if h.play.at != 0 || !h.play.auto {
 		t.Fatal("previous player's timer advanced the new player")
@@ -210,13 +210,13 @@ func TestPlayRecordsLiveKeysFromAStep(t *testing.T) {
 	}
 	keytest.Press(h, "s")
 	if h.idx.Runtime.TopModal() == "" {
-		t.Fatalf("s opened no save prompt (msg %q)", h.msg)
+		t.Fatalf("s opened no save prompt (msg %q)", h.idx.Status)
 	}
 	keytest.Type(h, "walk")
 	keytest.Press(h, "enter")
 	e, err := lib.Store.Load("walk")
 	if err != nil {
-		t.Fatal(err, h.msg)
+		t.Fatal(err, h.idx.Status)
 	}
 	if len(e.Rec.Events) != 2 || e.Rec.Events[0].Key != "j" || e.Rec.Events[1].Key != "j" {
 		t.Fatalf("saved events %+v", e.Rec.Events)
@@ -234,7 +234,8 @@ func TestPlayTutorialResetsNavigatesAndShowsCaptions(t *testing.T) {
 		}
 	})
 	s := story.Find(lib.Stories, "tutorials/independent-motions")
-	h.Update(startStory{s}) // story open uses the player for tutorials
+	_, start := h.Update(startStory{s}) // story open uses the player for tutorials
+	settlePlayerCommand(t, h, start)
 	p := h.play
 	if p.action != -1 || !strings.Contains(screen(h), "reset point") {
 		t.Fatal("setup not shown")
@@ -339,7 +340,8 @@ func TestPlayTutorialStopsOnBadResetPoint(t *testing.T) {
 func TestPlayTutorialTreeKeepsSetupParentsAndResetCursor(t *testing.T) {
 	h, lib := playHost(t)
 	t.Cleanup(func() { h.play.Close() })
-	h.Update(startStory{story.Find(lib.Stories, "tutorials/tree-resets")})
+	_, starting := h.Update(startStory{story.Find(lib.Stories, "tutorials/tree-resets")})
+	settlePlayerCommand(t, h, starting)
 	p := h.play
 	rows, cur := p.tutorialRows()
 	if cur != -1 || rows[0].Event != "j" || rows[1].Event != "j" || !rows[2].Reset {
@@ -421,7 +423,8 @@ func TestPlayTutorialTreeKeepsParentVisibleForLongActions(t *testing.T) {
 		s.Actions[0].Keys[i] = story.Event{Key: "j"}
 	}
 	s.Actions[0].Expect = nil
-	h.Update(startStory{&s})
+	_, starting := h.Update(startStory{&s})
+	settlePlayerCommand(t, h, starting)
 	p := h.play
 	if err := p.chooseAction(0); err != nil {
 		t.Fatal(err)

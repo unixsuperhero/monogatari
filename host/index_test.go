@@ -91,8 +91,9 @@ func TestOpenStartsOnTheStory(t *testing.T) {
 	}
 	h.Update(tea.WindowSizeMsg{Width: 120, Height: 50})
 	_, cmd := h.Update(startStory{s})
+	cmd = settlePlayerCommand(t, h, cmd)
 	if h.play == nil || !h.play.auto || cmd == nil {
-		t.Fatalf("no story open: %s", h.msg)
+		t.Fatalf("no story open: %s", h.idx.Status)
 	}
 	t.Cleanup(h.play.Close)
 	if view := ansi.Strip(h.View().Content); !strings.Contains(view, "b3") || h.play.d.S.R.Focus != "a2" {

@@ -1,0 +1,37 @@
+{
+  "name": "enter-slow-fixture",
+  "area": "index",
+  "width": 120,
+  "height": 40,
+  "fixture": "review",
+  "seed": {
+    "focus": "slow/slow1",
+    "cold": true
+  },
+  "script": [
+    "enter",
+    "j",
+    "esc"
+  ],
+  "expect": [
+    {
+      "after": 1,
+      "contains": [
+        "Starting…"
+      ]
+    },
+    {
+      "after": 2,
+      "focus": "s46",
+      "contains": [
+        "Starting…"
+      ]
+    },
+    {
+      "lacks": [
+        "Starting…"
+      ],
+      "focus": "s46"
+    }
+  ]
+}

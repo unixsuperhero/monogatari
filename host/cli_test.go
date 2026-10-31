@@ -213,7 +213,7 @@ func TestTUIRecordsAndSaves(t *testing.T) {
 	keytest.Press(h, "enter")
 	e, err := lib.Store.Load("first")
 	if err != nil {
-		t.Fatal(err, h.msg)
+		t.Fatal(err, h.idx.Status)
 	}
 	if e.Rec.Story != first || len(e.Rec.Events) != 2 || e.Rec.Events[0].Key != "j" || e.Rec.Events[1].Key != "q" {
 		t.Fatalf("recording %+v", e.Rec)
