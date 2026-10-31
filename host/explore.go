@@ -9,9 +9,9 @@ import (
 	"slices"
 	"strings"
 
-	story "github.com/unixsuperhero/monogatari"
-	"github.com/unixsuperhero/monogatari/explore"
-	"github.com/unixsuperhero/oden"
+	story "ofam.dev/monogatari"
+	"ofam.dev/monogatari/explore"
+	"ofam.dev/oden"
 )
 
 // Explore runs the state explorer over every story-built application (one

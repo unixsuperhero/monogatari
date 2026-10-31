@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/unixsuperhero/monogatari/explore"
+	"ofam.dev/monogatari/explore"
 )
 
 // The explorer's slow tests (seconds each): go test -tags explore, or

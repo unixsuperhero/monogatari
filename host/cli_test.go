@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	story "github.com/unixsuperhero/monogatari"
-	"github.com/unixsuperhero/ochazuke/keytest"
+	story "ofam.dev/monogatari"
+	"ofam.dev/ochazuke/keytest"
 )
 
 // verbs --readme rewrites the README's generated section and keeps its

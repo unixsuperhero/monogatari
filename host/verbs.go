@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	story "github.com/unixsuperhero/monogatari"
-	"github.com/unixsuperhero/oden"
+	story "ofam.dev/monogatari"
+	"ofam.dev/oden"
 )
 
 // The README's generated section sits between these markers: the begin

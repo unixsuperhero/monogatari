@@ -10,9 +10,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	story "github.com/unixsuperhero/monogatari"
-	"github.com/unixsuperhero/ochazuke"
-	"github.com/unixsuperhero/ochazuke/keytest"
+	story "ofam.dev/monogatari"
+	"ofam.dev/ochazuke"
+	"ofam.dev/ochazuke/keytest"
 )
 
 // host is the TUI: an index of stories (itself an ochazuke page) and, while

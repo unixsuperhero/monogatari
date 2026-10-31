@@ -11,8 +11,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	story "github.com/unixsuperhero/monogatari"
-	"github.com/unixsuperhero/ochazuke"
+	story "ofam.dev/monogatari"
+	"ofam.dev/ochazuke"
 )
 
 // player plays a story's script one event at a time, headless, and shows

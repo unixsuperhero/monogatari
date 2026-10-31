@@ -43,9 +43,9 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	story "github.com/unixsuperhero/monogatari"
-	ocli "github.com/unixsuperhero/ochazuke/cli"
-	"github.com/unixsuperhero/oden"
+	story "ofam.dev/monogatari"
+	ocli "ofam.dev/ochazuke/cli"
+	"ofam.dev/oden"
 )
 
 // Config is one host: its name, the apps its stories build and its

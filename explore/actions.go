@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/unixsuperhero/ochazuke"
+	"ofam.dev/ochazuke"
 )
 
 // Hostile are the keys pressed in every state whether or not a row

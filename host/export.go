@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	story "github.com/unixsuperhero/monogatari"
+	story "ofam.dev/monogatari"
 )
 
 // Export writes one deterministic JSON file per selected story and index.json.

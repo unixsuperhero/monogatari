@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/unixsuperhero/monogatari/explore"
+	"ofam.dev/monogatari/explore"
 )
 
 // TestObserveSeesEveryStepInOrder: Budget.Observe is told about the

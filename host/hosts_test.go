@@ -12,8 +12,8 @@ import (
 	"testing/fstest"
 	"time"
 
-	story "github.com/unixsuperhero/monogatari"
-	"github.com/unixsuperhero/oden"
+	story "ofam.dev/monogatari"
+	"ofam.dev/oden"
 )
 
 // A host's name defaults to its Prog's slug: mtm story keeps its state

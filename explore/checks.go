@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
-	"github.com/unixsuperhero/ochazuke"
+	"ofam.dev/ochazuke"
 )
 
 // The framework's checks, by the names findings are grouped under.

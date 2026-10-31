@@ -11,9 +11,9 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/unixsuperhero/monogatari"
-	"github.com/unixsuperhero/monogatari/explore"
-	"github.com/unixsuperhero/ochazuke"
+	"ofam.dev/monogatari"
+	"ofam.dev/monogatari/explore"
+	"ofam.dev/ochazuke"
 )
 
 // counter is a test app: a page that shows a count (bumped by b, started

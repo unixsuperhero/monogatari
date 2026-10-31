@@ -10,7 +10,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	story "github.com/unixsuperhero/monogatari"
+	story "ofam.dev/monogatari"
 )
 
 var updateIndex = flag.Bool("update-index", false, "rewrite testdata/index.golden")

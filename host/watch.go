@@ -11,9 +11,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	story "github.com/unixsuperhero/monogatari"
-	"github.com/unixsuperhero/monogatari/explore"
-	"github.com/unixsuperhero/ochazuke"
+	story "ofam.dev/monogatari"
+	"ofam.dev/monogatari/explore"
+	"ofam.dev/ochazuke"
 )
 
 // Watch mode (PROG explore --watch) is a view over the explorer's run,

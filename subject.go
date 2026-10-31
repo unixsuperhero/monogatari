@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/unixsuperhero/monogatari/explore"
-	"github.com/unixsuperhero/ochazuke"
+	"ofam.dev/monogatari/explore"
+	"ofam.dev/ochazuke"
 )
 
 // Subject explores a story's application: every replay builds the story

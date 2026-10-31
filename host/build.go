@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	story "github.com/unixsuperhero/monogatari"
+	story "ofam.dev/monogatari"
 )
 
 type playerBuilt struct{ player *player }

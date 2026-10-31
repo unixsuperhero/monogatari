@@ -4,13 +4,13 @@
     <img alt="monogatari" src="assets/logo-animated-light.svg" width="411">
   </picture>
   <br>
-  <a href="https://github.com/unixsuperhero/monogatari/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/unixsuperhero/monogatari"></a>
-  <a href="https://pkg.go.dev/github.com/unixsuperhero/monogatari"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/unixsuperhero/monogatari.svg"></a>
-  <a href="go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/unixsuperhero/monogatari"></a>
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/unixsuperhero/monogatari"></a>
+  <a href="https://github.com/ofamtools/monogatari/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/ofamtools/monogatari"></a>
+  <a href="https://pkg.go.dev/ofam.dev/monogatari"><img alt="Go Reference" src="https://pkg.go.dev/badge/ofam.dev/monogatari.svg"></a>
+  <a href="go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/ofamtools/monogatari"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/ofamtools/monogatari"></a>
 </p>
 
-<p align="center">Stories for apps built on <a href="https://github.com/unixsuperhero/ochazuke">ochazuke</a>: JSON keystroke scripts played headless against your app's real UI, with expectations on what the screen shows.</p>
+<p align="center">Stories for apps built on <a href="https://github.com/ofamtools/ochazuke">ochazuke</a>: JSON keystroke scripts played headless against your app's real UI, with expectations on what the screen shows.</p>
 
 <!-- Demo gif goes here once there is one (recorded with vhs, like oden's and ochazuke's):
 <p align="center"><img alt="..." src="assets/demo.gif" width="720"></p>
@@ -22,9 +22,9 @@ the app's real `ochazuke.Model`, headless under `go test` or live in a
 terminal, so a UI bug becomes a story before it is fixed and a reviewer can
 walk an app change key by key without touching anyone's data.
 
-Module `github.com/unixsuperhero/monogatari`; requires Go 1.26 or newer. It
-requires [ochazuke](https://github.com/unixsuperhero/ochazuke) and
-[oden](https://github.com/unixsuperhero/oden); neither requires it.
+Module `ofam.dev/monogatari`; requires Go 1.26 or newer. It
+requires [ochazuke](https://github.com/ofamtools/ochazuke) and
+[oden](https://github.com/ofamtools/oden); neither requires it.
 
 > **Status: v0.1.0, early.** The engine is here: the story format, the runner
 > and driver, recordings, trimming and the explorer (moved from ochazuke's
@@ -50,7 +50,7 @@ requires [ochazuke](https://github.com/unixsuperhero/ochazuke) and
   that never settle), each finding written out as a story that reproduces it
   (`monogatari/explore`; `Library.Subject` explores a story's app).
 - **A host per app.** CLI subcommands, an index TUI and a player, as an
-  [oden](https://github.com/unixsuperhero/oden) command an app mounts under
+  [oden](https://github.com/ofamtools/oden) command an app mounts under
   its own name (`mtm story ...`), each host with its own user stories and
   recordings (see "The host" below).
 
@@ -341,7 +341,7 @@ so its state stays put whichever command runs it.
 ## Install
 
 ```sh
-go get github.com/unixsuperhero/monogatari@latest
+go get ofam.dev/monogatari@latest
 ```
 
 Requires ochazuke v0.54.0 or newer. For local development against sibling
@@ -354,10 +354,10 @@ below it requires it, and an app requires it only for its tester build:
 
 | Repo | Relation |
 |---|---|
-| [ochazuke](https://github.com/unixsuperhero/ochazuke) | monogatari requires it (`Model`, `Runtime`, `cli`, `markdown`, `keytest`). Its `o-story` tool becomes one more host, the host of ochazuke's demo app, in a nested module; the root module never imports monogatari. |
-| [oden](https://github.com/unixsuperhero/oden) | The host is an oden command an app mounts, so `mtm story` resolves like any other subcommand. |
-| [matomeru](https://github.com/unixsuperhero/matomeru) (`mtm`) | Its `mtm-story` tester mounts the host with fixtures `seeded` and `empty` and its stories under `cmd/mtm/stories/`. Planned. |
-| [o-json](https://github.com/unixsuperhero/o-json) | Runs its 14 stories through ochazuke's `story` package by hand today; moves to a tagged `o-json story` mount. Planned. |
+| [ochazuke](https://github.com/ofamtools/ochazuke) | monogatari requires it (`Model`, `Runtime`, `cli`, `markdown`, `keytest`). Its `o-story` tool becomes one more host, the host of ochazuke's demo app, in a nested module; the root module never imports monogatari. |
+| [oden](https://github.com/ofamtools/oden) | The host is an oden command an app mounts, so `mtm story` resolves like any other subcommand. |
+| [matomeru](https://github.com/ofamtools/matomeru) (`mtm`) | Its `mtm-story` tester mounts the host with fixtures `seeded` and `empty` and its stories under `cmd/mtm/stories/`. Planned. |
+| [o-json](https://github.com/ofamtools/o-json) | Runs its 14 stories through ochazuke's `story` package by hand today; moves to a tagged `o-json story` mount. Planned. |
 
 Release order: tag ochazuke, then monogatari, then bump ochazuke's nested
 modules and the apps' testers (see [AGENTS.md](AGENTS.md), "Releasing").

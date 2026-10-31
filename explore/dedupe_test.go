@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/unixsuperhero/monogatari/explore"
+	"ofam.dev/monogatari/explore"
 )
 
 // TestDedupe groups findings by check and normalized summary across

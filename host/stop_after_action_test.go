@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	story "github.com/unixsuperhero/monogatari"
-	"github.com/unixsuperhero/ochazuke"
-	"github.com/unixsuperhero/ochazuke/keytest"
+	story "ofam.dev/monogatari"
+	"ofam.dev/ochazuke"
+	"ofam.dev/ochazuke/keytest"
 )
 
 func TestPlayStopAfterAction(t *testing.T) {

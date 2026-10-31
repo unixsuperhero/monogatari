@@ -7,9 +7,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	story "github.com/unixsuperhero/monogatari"
-	"github.com/unixsuperhero/ochazuke"
-	"github.com/unixsuperhero/ochazuke/keytest"
+	story "ofam.dev/monogatari"
+	"ofam.dev/ochazuke"
+	"ofam.dev/ochazuke/keytest"
 )
 
 // playHost opens the index on the spill-down story and enters play mode.

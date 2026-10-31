@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	story "github.com/unixsuperhero/monogatari"
-	"github.com/unixsuperhero/monogatari/explore"
+	story "ofam.dev/monogatari"
+	"ofam.dev/monogatari/explore"
 )
 
 // dedupe reads every explore report under in (PROG explore --out's

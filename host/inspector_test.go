@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
-	story "github.com/unixsuperhero/monogatari"
-	"github.com/unixsuperhero/ochazuke"
-	"github.com/unixsuperhero/ochazuke/keytest"
+	story "ofam.dev/monogatari"
+	"ofam.dev/ochazuke"
+	"ofam.dev/ochazuke/keytest"
 )
 
 var updateInspector = flag.Bool("update-inspector", false, "rewrite testdata/inspector.golden")

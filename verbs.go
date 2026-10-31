@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/unixsuperhero/ochazuke"
+	"ofam.dev/ochazuke"
 )
 
 // Minimum is what a set of stories exercises: per mode and noun the

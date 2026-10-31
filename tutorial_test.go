@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/unixsuperhero/monogatari"
+	"ofam.dev/monogatari"
 )
 
 func TestTutorialActionsResetStateAndRunSetup(t *testing.T) {

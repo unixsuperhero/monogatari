@@ -7,7 +7,7 @@ live, records sessions and explores them; each app mounts its host to build
 its own story tester (`mtm story ...`, an o-json tester). ochazuke's
 `o-story` is one more host, the host of ochazuke's demo app.
 
-Module `github.com/unixsuperhero/monogatari`. It requires ochazuke (for
+Module `ofam.dev/monogatari`. It requires ochazuke (for
 `Model`, `Runtime`, `cli`, `markdown`, `keytest`) and oden (for the host's
 command); neither requires monogatari. README.md holds the contract (story
 format, "Stories for your app", the release order); keep it in sync with the
@@ -75,7 +75,7 @@ nothing here carries a `//go:build monogatari` line.
   modules that require both.
 - Never bind function keys (F1 to F12) anywhere: stories, fixtures, demos and tests included.
 - Keys are named as bindings name them (`ctrl+c`, `esc`, `shift+tab`) and
-  sent through `github.com/unixsuperhero/ochazuke/keytest`; never spell out a
+  sent through `ofam.dev/ochazuke/keytest`; never spell out a
   Bubble Tea key message here.
 - Tests never touch the developer's data or config: temp `HOME`,
   `XDG_CONFIG_HOME`, `XDG_DATA_HOME` and `XDG_STATE_HOME`.
@@ -111,7 +111,7 @@ Steps for a monogatari tag:
 2. Add a `## vX.Y.Z (DATE)` section at the top of CHANGELOG.md (above o-inventory's dated entries) with the highlights.
 3. Run the checks with `GOWORK=off` and `go mod tidy` (no diff); commit and push.
 4. `git tag -a vX.Y.Z -m "..."` on that exact commit, `git push origin vX.Y.Z`, `gh release create vX.Y.Z --notes ...`. Never move or delete a pushed tag; fix forward with the next patch.
-5. Check the proxy: `GOPROXY=https://proxy.golang.org GOFLAGS=-mod=mod go list -m github.com/unixsuperhero/monogatari@vX.Y.Z`.
-6. Bump consumers: `go get github.com/unixsuperhero/monogatari@vX.Y.Z && go mod tidy`, gate with `GOWORK=off` (and `-tags monogatari` in apps), commit and push.
+5. Check the proxy: `GOPROXY=https://proxy.golang.org GOFLAGS=-mod=mod go list -m ofam.dev/monogatari@vX.Y.Z`.
+6. Bump consumers: `go get ofam.dev/monogatari@vX.Y.Z && go mod tidy`, gate with `GOWORK=off` (and `-tags monogatari` in apps), commit and push.
 
 Local development uses an untracked `go.work` (`go work init . && go work use ../ochazuke ../oden`), ignored via `.gitignore`, so builds use the sibling checkouts while `GOWORK=off` uses the tags. Never commit a `replace` to a local path or a shared `~/proj/go.work`.

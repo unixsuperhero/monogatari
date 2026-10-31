@@ -7,9 +7,9 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/unixsuperhero/ochazuke"
-	"github.com/unixsuperhero/ochazuke/keytest"
-	"github.com/unixsuperhero/ochazuke/markdown"
+	"ofam.dev/ochazuke"
+	"ofam.dev/ochazuke/keytest"
+	"ofam.dev/ochazuke/markdown"
 )
 
 // Tagged is a message from a session's command, tagged with the session's

@@ -14,7 +14,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/unixsuperhero/ochazuke"
+	"ofam.dev/ochazuke"
 )
 
 // Story is one scenario file.

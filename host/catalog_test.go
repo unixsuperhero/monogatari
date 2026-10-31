@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	story "github.com/unixsuperhero/monogatari"
-	ocli "github.com/unixsuperhero/ochazuke/cli"
+	story "ofam.dev/monogatari"
+	ocli "ofam.dev/ochazuke/cli"
 )
 
 func runTool(t *testing.T, tool *Tool, args ...string) string {

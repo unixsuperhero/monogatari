@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	story "github.com/unixsuperhero/monogatari"
-	"github.com/unixsuperhero/ochazuke"
+	story "ofam.dev/monogatari"
+	"ofam.dev/ochazuke"
 )
 
 // rowsSeed is the rows test app's seed: lists of numbered rows (list a

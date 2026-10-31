@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/unixsuperhero/ochazuke"
+	"ofam.dev/ochazuke"
 )
 
 // node is one state the search reached, by the shortest path found.

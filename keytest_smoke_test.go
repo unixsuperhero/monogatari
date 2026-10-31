@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/unixsuperhero/ochazuke/keytest"
+	"ofam.dev/ochazuke/keytest"
 )
 
 // recorder is the smallest model keytest can drive: it keeps every message's

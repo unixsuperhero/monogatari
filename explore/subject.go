@@ -5,7 +5,7 @@ import (
 	"slices"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/unixsuperhero/ochazuke"
+	"ofam.dev/ochazuke"
 )
 
 // Subject is an application to explore.

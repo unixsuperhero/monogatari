@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	story "github.com/unixsuperhero/monogatari"
-	"github.com/unixsuperhero/monogatari/explore"
+	story "ofam.dev/monogatari"
+	"ofam.dev/monogatari/explore"
 )
 
 // TestExploreWritesGapStories: rows story explore runs one story application

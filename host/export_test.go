@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	story "github.com/unixsuperhero/monogatari"
+	story "ofam.dev/monogatari"
 )
 
 func TestExportTutorialReplay(t *testing.T) {

@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/charmbracelet/x/ansi"
-	story "github.com/unixsuperhero/monogatari"
-	"github.com/unixsuperhero/monogatari/explore"
-	"github.com/unixsuperhero/ochazuke/keytest"
+	story "ofam.dev/monogatari"
+	"ofam.dev/monogatari/explore"
+	"ofam.dev/ochazuke/keytest"
 )
 
 const watchStory = "motions/spill-down"

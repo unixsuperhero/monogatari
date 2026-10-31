@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/unixsuperhero/ochazuke"
+	"ofam.dev/ochazuke"
 )
 
 // State is what one moment of an application is keyed by: two moments are
