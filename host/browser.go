@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -18,7 +19,7 @@ import (
 func declareIndexSettings(r *ochazuke.Runtime) error {
 	// v0.54 keeps this default on Page. Leave a later framework declaration
 	// in charge when it exposes the same setting itself.
-	if _, declared := r.Settings().Value("scrolloff"); !declared {
+	if !slices.ContainsFunc(r.Settings().Declared(), func(s ochazuke.Setting) bool { return s.Name == "scrolloff" }) {
 		if err := r.DeclareSetting(ochazuke.Setting{Name: "scrolloff", Type: ochazuke.SettingInteger, Default: 2, Description: "Rows kept above and below the focus", Validate: func(v any) error {
 			if v.(int) < 0 {
 				return fmt.Errorf("must be nonnegative")
