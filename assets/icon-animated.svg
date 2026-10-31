@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="monogatari">
+<title>monogatari</title>
+<style>.rb{transform-box:fill-box;transform-origin:50% 0%}@media (prefers-reduced-motion: no-preference){.rb{animation:sway 4s cubic-bezier(.45,0,.25,1) infinite}@keyframes sway{0%{transform:none}8%{transform:rotate(7deg)}18%{transform:rotate(-4.5deg)}28%{transform:rotate(2.5deg)}37%{transform:rotate(-1deg)}45%,100%{transform:none}}}</style>
+<rect width="128" height="128" rx="28" fill="#161b26"/>
+<g transform="translate(20 16)"><g>
+<path d="M44 30C32 22 16 21 3 25V75C16 71 32 72 44 80C56 72 72 71 85 75V25C72 21 56 22 44 30Z" fill="#4a74b8"/>
+<path d="M43 31C32 25 18 25 8 27V70C18 68 32 69 43 75Z" fill="#fff6e3"/>
+<path d="M45 31C56 25 70 25 80 27V70C70 68 56 69 45 75Z" fill="#0f141e"/>
+<path d="M14 38h22M14 47h22M14 56h16" stroke="#c9b68e" stroke-width="3.5" stroke-linecap="round"/>
+<path d="M53 39l6 5-6 5" fill="none" stroke="#7ee0b5" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M60 54h5" stroke="#7ee0b5" stroke-width="3.6" stroke-linecap="round"/>
+<path class="rb" d="M78 24V90l-4-5-4 5V25" fill="#ff5f63"/>
+</g></g>
+</svg>

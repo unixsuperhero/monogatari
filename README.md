@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
-    <img alt="monogatari" src="assets/logo-light.svg" width="411">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-animated-dark.svg">
+    <img alt="monogatari" src="assets/logo-animated-light.svg" width="411">
   </picture>
   <br>
   <a href="https://github.com/unixsuperhero/monogatari/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/unixsuperhero/monogatari"></a>
