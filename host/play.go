@@ -69,6 +69,10 @@ type playRow struct {
 	Ran    string // the top-level requests the event ran, once played
 	State  rowState
 	Final  bool
+	Detail string
+	Depth  int
+	Parent bool
+	Reset  bool
 }
 
 type rowState int
@@ -422,6 +426,85 @@ func (p *player) current() int {
 	return p.at - 1
 }
 
+// tutorialRows is one tree, independent of the segment currently playing.
+// The reset row remains the cursor position until an action's first key runs.
+func (p *player) tutorialRows() ([]playRow, int) {
+	steps := func(events []story.Event, expects story.Expects) []playRow {
+		rows := make([]playRow, len(events))
+		for i, e := range events {
+			rows[i] = playRow{Event: e.String(), Detail: e.Note}
+		}
+		for _, e := range expects {
+			if e.After > 0 && e.After <= len(rows) {
+				rows[e.After-1].Assert = summarize([]story.Expect{e})
+			}
+		}
+		return rows
+	}
+	setup := steps(p.story.Setup, p.story.Expect)
+	reset := playRow{Event: "reset point", Reset: true}
+	for _, e := range p.story.Expect {
+		if e.After == 0 {
+			reset.Assert = summarize([]story.Expect{e})
+		}
+	}
+	if p.action < 0 {
+		played := p.rows()
+		copy(setup, played)
+		for i := range setup {
+			setup[i].Detail = p.story.Setup[i].Note
+		}
+		if len(played) > len(setup) {
+			reset.State = played[len(setup)].State
+		}
+	} else {
+		for i := range setup {
+			setup[i].State = rowPlayed
+		}
+		reset.State = rowPassed
+	}
+	rows := append(setup, reset)
+	addNotes := func(notes []story.Note, start, end, opening int) {
+		for _, note := range notes {
+			at := opening
+			if note.After > 0 {
+				at = min(start+note.After-1, end)
+			}
+			rows[at].Detail = strings.TrimSpace(rows[at].Detail + "\n" + note.Note)
+		}
+	}
+	addNotes(p.story.Notes, 0, len(setup), 0)
+	cur := p.current()
+	if p.action >= 0 || p.at >= len(setup) {
+		cur = len(setup)
+	}
+	for i, a := range p.story.Actions {
+		parent := len(rows)
+		rows = append(rows, playRow{Event: a.Label, Detail: a.Caption, Parent: true})
+		children := steps(a.Keys, a.Expect)
+		if i == p.action {
+			children = p.rows()
+			if len(children) > len(a.Keys) {
+				final := children[len(a.Keys)]
+				rows[parent].Assert, rows[parent].State = final.Assert, final.State
+				children = children[:len(a.Keys)]
+			}
+			for j := range a.Keys {
+				children[j].Detail = a.Keys[j].Note
+			}
+			if p.at > 0 {
+				cur = parent + p.at
+			}
+		}
+		for j := range children {
+			children[j].Depth = 1
+		}
+		rows = append(rows, children...)
+		addNotes(a.Notes, parent+1, len(rows)-1, parent)
+	}
+	return rows, cur
+}
+
 // failures is what went wrong at the current position, if anything.
 func (p *player) failures() []string {
 	if p.err != nil {
@@ -504,6 +587,9 @@ func summarize(ex []story.Expect) string {
 // runtime. The page's instance is of the play noun, so its rows answer
 // while the page is open and the footer's hints derive from them.
 func (h *host) definePlay(r *ochazuke.Runtime) error {
+	if err := r.DeclareSetting(ochazuke.Setting{Name: "play.tree", Type: ochazuke.SettingBoolean, Default: true, Description: "Show tutorials in one tree: setup, reset point, and action titles with their key steps; off shows only the active segment"}); err != nil {
+		return err
+	}
 	if err := r.DeclareSetting(ochazuke.Setting{Name: "play.captions", Type: ochazuke.SettingBoolean, Default: true, Description: "Show tutorial captions and step notes in the player"}); err != nil {
 		return err
 	}
@@ -677,14 +763,20 @@ func (h *host) renderPlay(_ *ochazuke.Runtime, w, ht int) ochazuke.Block {
 	box := boxFrame(frame, title, fmt.Sprintf(" %dx%d ", sw, sh), sw)
 
 	side := sideWidth(w, sw)
+	tree := len(p.story.Actions) > 0 && h.idx.Runtime.Settings().Bool("play.tree")
+	showCaptions := h.idx.Runtime.Settings().Bool("play.captions")
 	var caption []string
-	if h.idx.Runtime.Settings().Bool("play.captions") {
+	if showCaptions && !tree {
 		if text := p.caption(); text != "" {
 			caption = strings.Split(ansi.Wrap(text, max(1, w), ""), "\n")
 			caption = append(caption, "")
 		}
 	}
-	body := beside(p.sidebar(s, side, max(0, ht-len(caption))), box, side, w, max(0, ht-len(caption)))
+	sidebar := p.sidebar(s, side, max(0, ht-len(caption)))
+	if tree {
+		sidebar = p.treeSidebar(s, side, ht, showCaptions)
+	}
+	body := beside(sidebar, box, side, w, max(0, ht-len(caption)))
 	if len(caption) > 0 {
 		body = strings.Join(caption, "\n") + "\n" + body
 	}
@@ -832,6 +924,93 @@ func (p *player) sidebar(s ochazuke.Styles, width, height int) []string {
 		}
 		out = append(out, marker+event+" "+note)
 	}
+	if detail > 0 {
+		out = append(out, "")
+		for _, f := range fails[:detail] {
+			first, _, _ := strings.Cut(f, "\n")
+			out = append(out, s.Error.Render(ansi.Truncate(first, width, "…")))
+		}
+	}
+	return out
+}
+
+// treeSidebar keeps the same rows on screen across resets. A long action
+// keeps its parent and caption above the scrolling children as context.
+func (p *player) treeSidebar(s ochazuke.Styles, width, height int, captions bool) []string {
+	rows, cur := p.tutorialRows()
+	out := p.sidebar(s, width, 2)
+	var lines []string
+	starts := make([]int, len(rows)+1)
+	parent := -1
+	for i, row := range rows {
+		starts[i] = len(lines)
+		if row.Parent && i < cur {
+			parent = i
+		}
+		label := row.Event
+		switch {
+		case row.Parent:
+			label = "▾ " + label
+		case row.Reset:
+			label = "◆ " + label
+		case row.Depth > 0:
+			branch := "  ├ "
+			if i+1 == len(rows) || rows[i+1].Parent {
+				branch = "  └ "
+			}
+			label = branch + label
+		}
+		marker := "  "
+		if i == cur {
+			marker = "▸ "
+		}
+		line := ansi.Truncate(marker+label, width, "…")
+		if i == cur {
+			line = s.Accent.Reverse(true).Render(line)
+		} else if row.Parent || row.Reset {
+			line = s.Title.Render(line)
+		} else if row.State == rowUnplayed {
+			line = s.Muted.Render(line)
+		}
+		lines = append(lines, line)
+		if row.Assert != "" {
+			mark := "· "
+			if row.State == rowPassed {
+				mark = "✓ "
+			} else if row.State == rowFailed {
+				mark = "✗ "
+			}
+			lines = append(lines, s.Muted.Render(ansi.Truncate("    "+mark+row.Assert, width, "…")))
+		}
+		if captions && row.Detail != "" {
+			indent := strings.Repeat(" ", 4+row.Depth*2)
+			for _, detail := range strings.Split(ansi.Wrap(row.Detail, max(1, width-len(indent)), ""), "\n") {
+				lines = append(lines, s.Muted.Render(indent+detail))
+			}
+		}
+	}
+	starts[len(rows)] = len(lines)
+	fails := p.failures()
+	detail := min(len(fails), max(0, height-len(out)-4))
+	avail := max(0, height-len(out)-detail)
+	if detail > 0 {
+		avail = max(0, avail-1)
+	}
+	position := 0
+	if cur >= 0 {
+		position = starts[cur]
+	}
+	start := max(0, position-avail+1)
+	if parent >= 0 && cur >= 0 && rows[cur].Depth > 0 && starts[parent] < start {
+		// These are the same tree's ancestor lines, pinned only when they
+		// would otherwise scroll out of view. Always leave room for the cursor.
+		n := min(starts[parent+1]-starts[parent], max(0, avail/2))
+		out = append(out, lines[starts[parent]:starts[parent]+n]...)
+		avail -= n
+		start = max(start, position-avail+1)
+	}
+	end := min(len(lines), start+avail)
+	out = append(out, lines[start:end]...)
 	if detail > 0 {
 		out = append(out, "")
 		for _, f := range fails[:detail] {

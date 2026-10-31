@@ -176,8 +176,12 @@ for people.
 `play.action-pause` defaults to `3s` before and after each action, giving time
 to read its caption and see its result; `0s` uses the key playback speed.
 `[` and `]` jump to the previous/next action's reset point, paused; `r` replays
-from the opening frame. Captions show the action label, purpose and keys above
-the frame. The host setting `play.captions` defaults to `true`; `:set
+from the opening frame. Tutorials show one tree: setup steps end at a reset
+row, followed by action titles with captions as detail and key steps as
+children. Before every action the cursor visibly returns to the reset row,
+then walks its key children. Long actions keep their parent and caption in
+view while steps scroll. `play.tree` defaults to `true`; false restores the
+active-segment column. The host setting `play.captions` defaults to `true`; `:set
 play.captions false` hides captions and notes.
 
 All stories support native `notes: [{"after": 1, "note": "What changed"}]`;

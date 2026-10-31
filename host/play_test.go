@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 	story "github.com/unixsuperhero/monogatari"
+	"github.com/unixsuperhero/ochazuke"
 	"github.com/unixsuperhero/ochazuke/keytest"
 )
 
@@ -277,5 +278,116 @@ func TestPlayTutorialStopsOnBadResetPoint(t *testing.T) {
 	p.step()
 	if p.at != 0 || len(p.failures()) == 0 {
 		t.Fatal("played action from a bad reset point")
+	}
+}
+
+func TestPlayTutorialTreeKeepsSetupParentsAndResetCursor(t *testing.T) {
+	h, lib := playHost(t)
+	t.Cleanup(func() { h.play.Close() })
+	h.Update(startStory{story.Find(lib.Stories, "tutorials/tree-resets")})
+	p := h.play
+	rows, cur := p.tutorialRows()
+	if cur != -1 || rows[0].Event != "j" || rows[1].Event != "j" || !rows[2].Reset {
+		t.Fatalf("opening tree: cursor %d, rows %+v", cur, rows)
+	}
+	var parents []string
+	for i, row := range rows {
+		if row.Parent {
+			parents = append(parents, row.Event)
+			if row.Detail == "" || rows[i+1].Depth != 1 || rows[i+2].Depth != 1 {
+				t.Fatalf("missing caption or child steps: %+v", rows[i:])
+			}
+		}
+	}
+	if strings.Join(parents, ",") != "Move up twice,Move down twice" {
+		t.Fatal(parents)
+	}
+	keytest.Press(h, "a")
+	for range 2 {
+		h.Update(playTick{p.gen})
+	}
+	if _, cur = p.tutorialRows(); cur != 2 || p.d.S.R.Focus != "a3" {
+		t.Fatal("setup did not end at the reset row")
+	}
+	h.Update(playTick{p.gen})
+	if _, cur = p.tutorialRows(); cur != 2 || p.action != 0 {
+		t.Fatal("first action did not visibly reset")
+	}
+	for want := 4; want <= 5; want++ {
+		h.Update(playTick{p.gen})
+		if _, cur = p.tutorialRows(); cur != want {
+			t.Fatalf("key child cursor %d, want %d", cur, want)
+		}
+	}
+	h.Update(playTick{p.gen})
+	if _, cur = p.tutorialRows(); cur != 2 || p.action != 1 || p.d.S.R.Focus != "a3" {
+		t.Fatal("second action did not jump back to the same reset row")
+	}
+	keytest.Press(h, "space")
+	if _, cur = p.tutorialRows(); cur != 7 || p.d.S.R.Focus != "a4" {
+		t.Fatalf("second action did not walk its children: cursor %d", cur)
+	}
+	keytest.Press(h, "[")
+	if _, cur = p.tutorialRows(); cur != 2 || p.action != 0 {
+		t.Fatal("previous action lost reset row")
+	}
+	keytest.Press(h, "]")
+	if _, cur = p.tutorialRows(); cur != 2 || p.action != 1 {
+		t.Fatal("next action lost reset row")
+	}
+	frame := screen(h)
+	if !strings.Contains(frame, "▸ ◆ reset point") || !strings.Contains(frame, "▾ Move up twice") || !strings.Contains(frame, "▾ Move down twice") {
+		t.Fatalf("not a single visible tutorial tree:\n%s", frame)
+	}
+	if _, err := h.idx.Runtime.Settings().SetSession("play.captions", false); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(screen(h), "k k moves") || !strings.Contains(screen(h), "▾ Move up twice") {
+		t.Fatal("caption opt-out must keep tree titles")
+	}
+	if _, err := h.idx.Runtime.Settings().SetSession("play.tree", false); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(screen(h), "▾ Move up twice") {
+		t.Fatal("tree layout cannot be disabled")
+	}
+	keytest.Press(h, "r")
+	if _, cur = p.tutorialRows(); cur != -1 || p.action != -1 {
+		t.Fatal("restart did not return to opening")
+	}
+}
+
+func TestPlayTutorialTreeKeepsParentVisibleForLongActions(t *testing.T) {
+	h, lib := playHost(t)
+	t.Cleanup(func() { h.play.Close() })
+	s := *story.Find(lib.Stories, "tutorials/tree-resets")
+	s.Actions = append([]story.Action(nil), s.Actions...)
+	s.Actions[0].Keys = make([]story.Event, 30)
+	for i := range s.Actions[0].Keys {
+		s.Actions[0].Keys[i] = story.Event{Key: "j"}
+	}
+	s.Actions[0].Expect = nil
+	h.Update(startStory{&s})
+	p := h.play
+	if err := p.chooseAction(0); err != nil {
+		t.Fatal(err)
+	}
+	for range 20 {
+		p.step()
+	}
+	styles := ochazuke.NewStyles(*h.idx.Appearance)
+	frame := ansi.Strip(strings.Join(p.treeSidebar(styles, 45, 12, true), "\n"))
+	if strings.Count(frame, "▾ Move up twice") != 1 || !strings.Contains(frame, "k k moves") || !strings.Contains(frame, "▸   ├ j") {
+		t.Fatalf("long action lost parent, caption or cursor:\n%s", frame)
+	}
+	if n := len(p.treeSidebar(styles, 45, 12, true)); n > 12 {
+		t.Fatalf("sidebar overflowed: %d lines", n)
+	}
+	if err := p.chooseAction(1); err != nil {
+		t.Fatal(err)
+	}
+	frame = ansi.Strip(strings.Join(p.treeSidebar(styles, 45, 12, true), "\n"))
+	if !strings.Contains(frame, "▸ ◆ reset point") {
+		t.Fatalf("reset cursor was not brought back into view:\n%s", frame)
 	}
 }

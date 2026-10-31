@@ -1,0 +1,12 @@
+{
+  "name": "Walk the tutorial tree from its reset row",
+  "area": "tutorials",
+  "seed": {"lists": [{"id": "a", "rows": 6}]},
+  "setup": ["j", {"key": "j", "note": "The second setup key reaches a3, our reset point."}],
+  "notes": [{"after": 2, "note": "Each action starts again from this row."}],
+  "expect": {"focus": "a3"},
+  "actions": [
+    {"label": "Move up twice", "caption": "k k moves up two rows. Return toward the beginning while keeping the same reset point.", "keys": ["k", "k"], "expect": {"focus": "a1"}},
+    {"label": "Move down twice", "caption": "j j moves down two rows from a3. Compare the opposite motion from exactly the same starting row.", "keys": ["j", "j"], "expect": {"focus": "a5"}}
+  ]
+}
