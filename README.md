@@ -357,7 +357,7 @@ below it requires it, and an app requires it only for its tester build:
 | [ochazuke](https://github.com/ofamtools/ochazuke) | monogatari requires it (`Model`, `Runtime`, `cli`, `markdown`, `keytest`). Its `o-story` tool becomes one more host, the host of ochazuke's demo app, in a nested module; the root module never imports monogatari. |
 | [oden](https://github.com/ofamtools/oden) | The host is an oden command an app mounts, so `mtm story` resolves like any other subcommand. |
 | [matomeru](https://github.com/ofamtools/matomeru) (`mtm`) | Its `mtm-story` tester mounts the host with fixtures `seeded` and `empty` and its stories under `cmd/mtm/stories/`. Planned. |
-| [o-json](https://github.com/ofamtools/o-json) | Runs its 14 stories through ochazuke's `story` package by hand today; moves to a tagged `o-json story` mount. Planned. |
+| [o-json](https://github.com/ofamtools/o-json) | Runs its 14 stories through ochazuke's `story` package by hand today; moves to a tagged `o json story` mount. Planned. |
 
 Release order: tag ochazuke, then monogatari, then bump ochazuke's nested
 modules and the apps' testers (see [AGENTS.md](AGENTS.md), "Releasing").
