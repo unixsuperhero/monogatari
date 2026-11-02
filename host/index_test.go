@@ -29,6 +29,8 @@ func TestIndexIsATablePerArea(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Golden's dimmed gutter measures faint, not a colour theme's fade.
+	h.idx.Appearance.Theme = "mono"
 	if err := h.idx.Runtime.Settings().Set("index.preview", false); err != nil {
 		t.Fatal(err)
 	}

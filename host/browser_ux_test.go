@@ -333,6 +333,8 @@ func TestBrowserUXCancelledBuildNeverStarts(t *testing.T) {
 
 func TestBrowserUXPreviewFrameDimmed(t *testing.T) {
 	h := browserHost(t)
+	// Golden's dimmed gutter measures faint, not a colour theme's fade.
+	h.idx.Appearance.Theme = "mono"
 	frame := h.renderPreview(60, 28)
 	for _, row := range strings.Split(story.Golden(frame), "\n") {
 		if strings.Contains(row, "e1") && strings.HasPrefix(row, "R|") {

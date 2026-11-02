@@ -46,36 +46,27 @@ func Golden(frame string) string {
 // and whether it holds reverse video under the faint attribute (dimmed), by
 // following the SGR state along the row.
 func highlights(row string) (full, dimmed bool) {
-	faint := false
+	state := map[string]bool{}
 	for i := 0; i < len(row); i++ {
-		if row[i] != 0x1b || i+1 >= len(row) || row[i+1] != '[' {
-			continue
-		}
-		j := i + 2
-		for j < len(row) && (row[j] >= '0' && row[j] <= '9' || row[j] == ';' || row[j] == ':') {
-			j++
-		}
-		if j >= len(row) || row[j] != 'm' {
-			continue
-		}
-		params := strings.Split(row[i+2:j], ";")
-		for _, p := range params {
-			switch p {
-			case "", "0":
-				faint = false
-			case "2":
-				faint = true
-			case "22":
-				faint = false
-			case "7":
-				if faint {
-					dimmed = true
-				} else {
-					full = true
-				}
+		if row[i] == 0x1b && i+1 < len(row) && row[i+1] == '[' {
+			j := i + 2
+			for j < len(row) && (row[j] >= '0' && row[j] <= '9' || row[j] == ';' || row[j] == ':') {
+				j++
+			}
+			if j < len(row) && row[j] == 'm' {
+				sgr(state, strings.Split(row[i+2:j], ";"))
+				i = j
+				continue
 			}
 		}
-		i = j
+		// Only text drawn under the final state of an SGR sequence counts.
+		if state["reverse"] {
+			if state["faint"] {
+				dimmed = true
+			} else {
+				full = true
+			}
+		}
 	}
 	return full, dimmed
 }
