@@ -11,9 +11,9 @@ Module `ofam.dev/monogatari`. It requires ochazuke (for
 `Model`, `Runtime`, `cli`, `markdown`, `keytest`) and oden (for the host's
 command); neither requires monogatari. README.md holds the contract (story
 format, "Stories for your app", the release order); keep it in sync with the
-code. The design is `~/hub/o-plans/plans/o-story-for-apps.md`.
+code. Applications provide their own fixtures through the library's app interface.
 
-Status: lanes L1 and L2 of that plan. The engine is here: the format, runner,
+Status: the engine and host are implemented. The engine is here: the format, runner,
 driver, recording and trimming in the root package (moved from ochazuke's
 `story` at `465906e`; the demo's page builder stayed in ochazuke as
 `cmd/o-story/demo`), the app seam (`app.go`: `App`, `Fixture`, `Env`,
@@ -26,7 +26,7 @@ The host's tests run over the `rows` test app (`host/app_test.go`) and
 
 ## Plans and todos
 
-Family plans, todos and the roadmap live in `~/hub/o-plans/` (`README.md` is the index). Read it before planning work; add or update items there. Do not add a TODO.md or docs/plans/ to this repo.
+Keep planning work in the family planning workspace, separate from this repository. Do not add a TODO.md or docs/plans/ to this repo.
 
 ## What monogatari owns, and what each app owns
 
